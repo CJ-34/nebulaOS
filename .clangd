@@ -1,0 +1,8 @@
+CompilerFlags:
+  Add:
+    - --target=i686-elf
+    - -ffreestanding
+    - -Ilibc/include
+    - -Ikernel/include
+    - -I.
+    - -Iarch/i386

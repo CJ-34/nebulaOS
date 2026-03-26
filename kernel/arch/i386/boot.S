@@ -24,7 +24,9 @@ stack_top:
 .global _start
 .type _start, @function
 _start:
-	movl stack_top, %esp
+	movl $stack_top, %esp
+
+  call _init
 	
 	call kernel_main
 
