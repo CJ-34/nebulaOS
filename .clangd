@@ -1,8 +1,18 @@
-CompilerFlags:
+CompileFlags:
   Add:
-    - --target=i686-elf
-    - -ffreestanding
-    - -Ilibc/include
-    - -Ikernel/include
-    - -I.
-    - -Iarch/i386
+    - "--target=i686-elf"
+    - "-std=gnu11"
+    - "-ffreestanding"
+    - "-Wall"
+    - "-Wextra"
+    - "-Ikernel/include"
+    - "-Ilibc/include"
+    - "-Ikernel/arch/i386/include"
+    - "-isystem"
+    - "sysroot/usr/include"
+
+Diagnostics:
+  UnusedIncludes: Strict
+
+Index:
+  Background: Build
