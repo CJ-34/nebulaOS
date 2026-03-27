@@ -12,8 +12,8 @@
  *  - Check transmit readness
  *  - Send characters and strings
 */
-#ifndef KERNEL_SERIAL_H
-#define KERNEL_SERIAL_H
+#ifndef _KERNEL_SERIAL_H
+#define _KERNEL_SERIAL_H
 
 #include <stddef.h>
 #include <stdint.h>

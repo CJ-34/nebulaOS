@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-
+make all
 . ./config.sh
 
 ISO_ROOT="$BUILDDIR/isodir"

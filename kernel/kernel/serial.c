@@ -1,4 +1,4 @@
-#include <kernel/serial.h>
+#include <kernel/drivers/serial.h>
 
 static bool g_serial_ready = false;
 
