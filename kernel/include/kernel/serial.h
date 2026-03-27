@@ -1,4 +1,4 @@
- /* 
+/* 
  * File: serial.h
  * Module: Serial Port Driver
  * Layer: architecture specific / x86
@@ -22,7 +22,7 @@
 #define COM1 0x3F8
 
 void serial_init(void);
-bool serial_is_init(void);
+bool serial_is_initialized(void);
 
 void serial_write_char(char c);
 void serial_write_string(const char* s);
