@@ -15,7 +15,7 @@ TARGET := $(ROOTDIR)/build/nebula.kernel
 # Kernel-specific flags
 # --------------------------------------------------
 CFLAGS := $(CFLAGS) -ffreestanding -Wall -Wextra
-CPPFLAGS := $(CPPFLAGS) $(SYSROOT_CPPFLAGS) -D__is_kernel -Iinclude 
+CPPFLAGS := $(CPPFLAGS) $(SYSROOT_CPPFLAGS) -D__is_kernel -Iinclude -Iarch 
 LDFLAGS := $(LDFLAGS) $(SYSROOT_LDFLAGS)
 LIBS := $(LIBS) -nostdlib -lk -lgcc
 
