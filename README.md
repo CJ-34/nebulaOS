@@ -15,6 +15,7 @@ with a freestanding `i686-elf` cross toolchain.
 - Multiboot physical-memory-map parsing
 - Bitmap physical-memory manager for 4 KiB page frames
 - Initial paging setup: the first 4 MiB is identity-mapped
+- Kernel heap with 8-byte-aligned allocations and free-list reuse
 
 ## Requirements
 
@@ -27,8 +28,6 @@ with a freestanding `i686-elf` cross toolchain.
 From the repository root:
 
 ```sh
-make
-./iso.sh
 ./qemu.sh
 ```
 

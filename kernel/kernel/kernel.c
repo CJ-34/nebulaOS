@@ -6,6 +6,7 @@
 #include <kernel/pit.h>
 #include <kernel/pmm.h>
 #include <kernel/paging.h>
+#include <kernel/heap.h>
 
 #include <kernel/tty.h>
 #include <kernel/vga.h>
@@ -146,6 +147,99 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
       paging_first_table_physical());
 
   log_info("Paging enabled with first 4 MiB identity-mapped\n");
+
+#define PAGING_TEST_VIRTUAL 0x00400000u
+#define PAGING_TEST_VALUE 0x4E454255u
+
+  uint32_t mapping_free_before = pmm_free_frames();
+  uint32_t mapped_frame = pmm_allocate_frame();
+
+  ASSERT(mapped_frame != PMM_INVALID_FRAME);
+
+  ASSERT(paging_map_page(PAGING_TEST_VIRTUAL, mapped_frame, PAGING_PAGE_WRITABLE));
+
+  volatile uint32_t *mapped_page =
+      (volatile uint32_t *)PAGING_TEST_VIRTUAL;
+
+  *mapped_page = PAGING_TEST_VALUE;
+
+  ASSERT(*mapped_page == PAGING_TEST_VALUE);
+
+  /*
+   * The allocated frame is currently below 4 MiB, so its identity mapping
+   * still exists. This confirms both virtual addresses reach the same frame.
+   */
+  ASSERT(*(volatile uint32_t *)mapped_frame == PAGING_TEST_VALUE);
+
+  log_info(
+      "Paging mapped virtual %x to physical %x\n",
+      PAGING_TEST_VIRTUAL,
+      mapped_frame);
+
+  ASSERT(paging_unmap_page(PAGING_TEST_VIRTUAL));
+  ASSERT(pmm_free_frame(mapped_frame));
+
+  /*
+   * The target frame was released. The new second page table stays allocated,
+   * so exactly one PMM frame remains in use.
+   */
+  ASSERT(pmm_free_frames() == mapping_free_before - 1);
+
+  log_info("Paging map/unmap test passed\n");
+
+  // log_info("Triggering controlled page fault\n");
+
+  // volatile uint32_t fault_value =
+  //     *(volatile uint32_t *)PAGING_TEST_VIRTUAL;
+
+  // (void)fault_value;
+
+  // PANIC("Controlled page-fault test unexpectedly returned");
+
+  if (!heap_init()) {
+    PANIC("Could not initialize kernel heap");
+  }
+
+  uint8_t* byte = kmalloc(1);
+  uint32_t* word = kmalloc(sizeof(uint32_t));
+  uint8_t* large = kmalloc(PMM_PAGE_SIZE);
+
+  ASSERT(byte != NULL);
+  ASSERT(word != NULL);
+  ASSERT(large != NULL);
+
+  ASSERT(((uint32_t)byte & 7) == 0);
+  ASSERT(((uint32_t)word & 7) == 0);
+  ASSERT(((uint32_t)large & 7) == 0);
+
+  *byte = 0x42;
+  *word = 0x4e454255;
+  large[0] = 0xAA;
+  large[PMM_PAGE_SIZE - 1] = 0x55;
+
+  ASSERT(*byte == 0x42);
+  ASSERT(*word == 0x4E454255);
+  ASSERT(large[0] == 0xAA);
+  ASSERT(large[PMM_PAGE_SIZE - 1] == 0x55);
+
+  log_info(
+      "Heap test passed: %d bytes across %d pages\n",
+      heap_used_bytes(),
+      heap_mapped_pages()
+  );
+
+  void* freed_byte_address = byte;
+  kfree(byte);
+  byte = NULL;
+
+  uint8_t* reused_byte = kmalloc(1);
+
+  ASSERT(reused_byte == freed_byte_address);
+
+  *reused_byte = 0x24;
+  ASSERT(*reused_byte == 0x24);
+
+  log_info("Heap allocation/free test passed\n");
 
   pic_init();
 

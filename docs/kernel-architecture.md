@@ -9,8 +9,6 @@ small identity-mapped paging setup.
 The project expects an `i686-elf` cross toolchain. The normal workflow is:
 
 ```sh
-make
-./iso.sh
 ./qemu.sh
 ```
 
@@ -113,6 +111,28 @@ PMM bitmap, Multiboot data, VGA memory, GDT/IDT data, and the initial paging
 structures. `paging_enable()` loads the page-directory physical address into
 `CR3` and sets `CR0.PG`; `paging_is_enabled()` verifies that bit afterward.
 
+## Kernel heap
+
+The heap begins at virtual address `0x00400000`, immediately above the initial
+identity map. It obtains physical frames from the PMM and maps each new heap
+page through `paging_map_page()` as the heap grows.
+
+`kmalloc()` returns 8-byte-aligned payload addresses. Each allocation has a
+small header directly before its payload:
+
+```text
+[ payload size | free-list next pointer ][ caller payload ]
+```
+
+`kfree()` recovers that header from the payload pointer and adds the block to a
+singly linked free list. `kmalloc()` searches that list before extending the
+heap, so an appropriately sized released block can be reused without mapping a
+new physical frame.
+
+The current heap is intentionally simple: it does not split oversized blocks,
+coalesce adjacent blocks, shrink mapped pages, validate pointers, detect
+double-frees, or synchronize concurrent callers.
+
 ## Current limits and next work
 
 - Only the first 4 MiB is mapped after paging is enabled.
@@ -121,7 +141,10 @@ structures. `paging_enable()` loads the page-directory physical address into
 - IRQ0 is the only unmasked hardware interrupt.
 - PMM allocation is a linear bitmap scan and has no locking for concurrent
   allocation.
+- Heap free-list operations are not yet synchronized and have no fragmentation
+  control.
 
 The next useful paging milestone is a general page-mapping interface, then a
 controlled page-fault test and an explicit policy for mapping physical frames
-above the initial 4 MiB identity map.
+above the initial 4 MiB identity map. The next heap milestone is block
+splitting and coalescing.

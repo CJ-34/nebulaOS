@@ -4,6 +4,16 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define PAGING_PAGE_WRITABLE 0x002u
+
+bool paging_map_page(
+    uint32_t virtual_address,
+    uint32_t physical_address,
+    uint32_t flags
+);
+
+bool paging_unmap_page(uint32_t virtual_address);
+
 bool paging_prepare_identity_map(void);
 
 uint32_t paging_directory_physical(void);
