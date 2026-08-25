@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include <kernel/gdt.h>
+
 #include <kernel/tty.h>
 #include <kernel/vga.h>
 #include <kernel/log.h>
@@ -14,12 +16,8 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
     PANICF("Not loading from a multiboot header");
     return;
   }
-  uint32_t mem_low;
-  uint32_t mem_high;
-  if (mbi->flags & MULTIBOOT_INFO_MEMORY) {
-    mem_low = mbi->mem_lower;
-    mem_high = mbi->mem_upper;
-  }
+
+  gdt_init();
   
   log_init();
   log_info("Nebula kernel starting...\n");
