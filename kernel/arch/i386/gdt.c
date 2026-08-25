@@ -33,3 +33,11 @@ void gdt_init(void) {
 
   gdt_load(&gdt_ptr);
 }
+
+bool gdt_is_loaded(void) {
+  struct gdt_pointer current_ptr;
+
+  __asm__ volatile ("sgdt %0" : "=m"(current_ptr));
+
+  return current_ptr.base == gdt_ptr.base && current_ptr.limit == gdt_ptr.limit;
+}

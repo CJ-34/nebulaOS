@@ -2,6 +2,7 @@
 #define _KERNEL_GDT_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define GDT_KERNEL_CODE_SELECTOR 0x08
 #define GDT_KERNEL_DATA_SELECTOR 0x10
@@ -23,5 +24,7 @@ struct gdt_pointer {
 void gdt_init(void);
 
 void gdt_load(const struct gdt_pointer* gdt_ptr);
+
+bool gdt_is_loaded(void);
 
 #endif

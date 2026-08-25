@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include <kernel/gdt.h>
+#include <kernel/idt.h>
 
 #include <kernel/tty.h>
 #include <kernel/vga.h>
@@ -18,15 +19,52 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
   }
 
   gdt_init();
+
+  if (!gdt_is_loaded()) {
+    PANIC("GDT was not loaded");
+  }
+
   
   log_init();
-  log_info("Nebula kernel starting...\n");
-  log_debug("Testing integer: %d\n", 67);
-  log_warm("This is a warning\n");
-  log_error("This is an error code: %x\n", 0xAE96C);
 
-  log_info("Memory lower address: %d KB\n", mem_low);
-  log_info("Memory upper address: %d KB\n", mem_high);
+  log_info("GDT loaded successfully\n");
+
+  idt_init();
+ 
+  if (!idt_is_loaded()) {
+    PANIC("IDT was not loaded");
+  }
+
+  log_info("IDT loaded successfully\n");
+
+  // __asm__ volatile (
+  //   "xorl %%edx, %%edx\n\t"
+  //   "movl $1, %%eax\n\t"
+  //   "divl %%edx"
+  //   :
+  //   :
+  //   :"eax", "edx", "cc"
+  // );
+
+  // PANIC("Divide-by-zero test unexpectedly returned");
+
+  log_info("Triggering invalid-opcode test\n");
+
+  __asm__ volatile ("ud2");
+
+  PANIC("Invalid-opcode test unexpectedly returned");
+
+  uint16_t cs;
+  uint16_t ds;
+  uint16_t ss;
+
+  __asm__ volatile ("movw %%cs, %0" : "=r"(cs));
+  __asm__ volatile ("movw %%ds, %0" : "=r"(ds));
+  __asm__ volatile ("movw %%ss, %0" : "=r"(ss));
+
+  log_info("cs == %x\n", cs);
+  log_info("ds == %x\n", ds);
+  log_info("ss == %x\n", ss);
 
   // PANIC("Kernel reached an unrecoverable state");
   // ASSERT(1 != 1);
