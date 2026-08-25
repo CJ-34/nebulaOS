@@ -7,6 +7,10 @@ static const char* exception_name(uint32_t vector) {
             return "Divide error";
         case 6:
             return "Invalid opcode";
+        case 13:
+            return "General protection fault";
+        case 14:
+            return "Page fault";
         default:
             return "Unknown exception";
     }
@@ -14,8 +18,9 @@ static const char* exception_name(uint32_t vector) {
 
 __attribute__((noreturn))
 void exception_handler(struct exception_frame* frame) {
-    PANICF("CPU exception %d: %s",
+    PANICF("CPU exception %d: %s (error code %x)",
         frame->vector,
-        exception_name(frame->vector)
+        exception_name(frame->vector),
+        frame->error_code
     );
 }

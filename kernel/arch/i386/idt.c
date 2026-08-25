@@ -3,11 +3,17 @@
 #include <kernel/gdt.h>
 #include <kernel/idt.h>
 
+#include <kernel/pic.h>
+
 static struct idt_entry idt_entries[IDT_ENTRY_COUNT];
 static struct idt_pointer idt_ptr;
 
 extern void isr_exception_0(void);
 extern void isr_exception_6(void);
+extern void isr_exception_13(void);
+extern void isr_exception_14(void);
+
+extern void irq_timer(void);
 
 static void idt_set_gate(
     uint8_t vector,
@@ -30,6 +36,9 @@ void idt_init(void) {
 
     idt_set_gate(0, (uint32_t)isr_exception_0, GDT_KERNEL_CODE_SELECTOR, 0x8E);
     idt_set_gate(6, (uint32_t)isr_exception_6, GDT_KERNEL_CODE_SELECTOR, 0x8E);
+    idt_set_gate(13, (uint32_t)isr_exception_13, GDT_KERNEL_CODE_SELECTOR, 0x8E);
+    idt_set_gate(14, (uint32_t)isr_exception_14, GDT_KERNEL_CODE_SELECTOR, 0x8E);
+    idt_set_gate(PIC_IRQ_BASE, (uint32_t)irq_timer, GDT_KERNEL_CODE_SELECTOR, 0x8E);
 
     idt_load(&idt_ptr);
 
