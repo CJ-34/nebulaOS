@@ -96,11 +96,25 @@ Current commands are:
 | `clear` | Clear and reinitialize the VGA terminal. |
 | `mem` | Print PMM total and free frame counts. |
 | `heap` | Print heap high-water usage and mapped-page count. |
+| `heaptest` | Exercise released-block reuse and writable heap memory. |
 | `ticks` | Print the PIT interrupt count. |
 | `panic` | Deliberately invoke the kernel panic path. |
 
-`heaptest` is an experimental placeholder and deliberately reports that it is
-not implemented. It is not listed by `help` yet.
+`heaptest` allocates a 256-byte block, records the heap high-water mark, frees
+the block, then requests 64 bytes. It verifies that the high-water mark does
+not increase—which means the allocator used an existing free block rather than
+extending the heap—and verifies writes at offsets 0 and 63 of the returned
+payload. It frees the test allocation before returning to the console.
+
+## VGA text terminal
+
+The terminal writes directly to the VGA text buffer at physical address
+`0xB8000`. Each 16-bit cell contains an ASCII character and its foreground and
+background color. When a newline or a character at column 79 would advance the
+cursor beyond row 24, the terminal scrolls: rows 1--24 are copied to rows
+0--23, row 24 is cleared using the current color, and the cursor remains on
+the final row. This replaces the earlier behavior that wrapped to row 0 and
+overwrote the oldest output.
 
 ## Physical memory manager
 
@@ -174,7 +188,6 @@ validate pointers, detect double-frees, or synchronize concurrent callers.
 - Heap free-list operations are not yet synchronized and have no fragmentation
   control.
 
-The next useful input milestone is a small diagnostic command such as
-`heaptest`, which can demonstrate allocation reuse, splitting, and coalescing
-without changing allocator code. Longer-term input work includes modifier
-locking, extended keys, and a keyboard layout abstraction.
+The next useful console milestone is command arguments or a dedicated
+diagnostic interface for inspecting allocator state. Longer-term input work
+includes modifier locking, extended keys, and a keyboard layout abstraction.

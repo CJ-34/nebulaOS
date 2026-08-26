@@ -37,21 +37,68 @@ static bool line_equals(const char *text)
     return index == line_length;
 }
 
-static void console_write_uint(uint32_t value) {
+static void console_run_heaptest(void)
+{
+    uint8_t *released_block = kmalloc(256);
+
+    if (released_block == NULL)
+    {
+        terminal_writestring("heaptest: allocation failed\n");
+    }
+    else
+    {
+        terminal_writestring("heaptest: allocation succeeded\n");
+        uint32_t high_water_before_reuse = heap_used_bytes();
+        kfree(released_block);
+
+        uint8_t *reused_block = kmalloc(64);
+
+        if (reused_block == NULL)
+        {
+            terminal_writestring("heaptest: reuse allocation failed\n");
+        }
+        else if (heap_used_bytes() == high_water_before_reuse)
+        {
+            reused_block[0] = 0x4E;
+            reused_block[63] = 0x42;
+
+            if (reused_block[0] == 0x4E && reused_block[63] == 0x42)
+            {
+                terminal_writestring("heaptest: passed\n");
+            }
+            else
+                terminal_writestring("heaptest: memory check failed\n");
+
+            terminal_writestring("heaptest: free block reused\n");
+            kfree(reused_block);
+        }
+        else
+        {
+            terminal_writestring("heaptest: block was not reused\n");
+            kfree(reused_block);
+        }
+    }
+}
+
+static void console_write_uint(uint32_t value)
+{
     char buffer[10];
     size_t length = 0;
 
-    if (value == 0) {
+    if (value == 0)
+    {
         terminal_putchar('0');
         return;
     }
 
-    while(value != 0) {
+    while (value != 0)
+    {
         buffer[length++] = (char)('0' + (value % 10));
         value /= 10;
     }
 
-    while (length != 0) {
+    while (length != 0)
+    {
         terminal_putchar(buffer[--length]);
     }
 }
@@ -68,7 +115,7 @@ static void console_submit_line(void)
 
     if (line_equals("help"))
     {
-        terminal_writestring("commands: help clear mem heap ticks panic\n");
+        terminal_writestring("commands: help clear mem heap heaptest ticks panic\n");
     }
     else if (line_equals("clear"))
     {
@@ -92,7 +139,7 @@ static void console_submit_line(void)
     }
     else if (line_equals("heaptest"))
     {
-        terminal_writestring("heaptest is not implemented yet\n");
+        console_run_heaptest();
     }
     else if (line_equals("ticks"))
     {
