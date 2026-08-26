@@ -196,13 +196,14 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
 
   // PANIC("Controlled page-fault test unexpectedly returned");
 
-  if (!heap_init()) {
+  if (!heap_init())
+  {
     PANIC("Could not initialize kernel heap");
   }
 
-  uint8_t* byte = kmalloc(1);
-  uint32_t* word = kmalloc(sizeof(uint32_t));
-  uint8_t* large = kmalloc(PMM_PAGE_SIZE);
+  uint8_t *byte = kmalloc(1);
+  uint32_t *word = kmalloc(sizeof(uint32_t));
+  uint8_t *large = kmalloc(PMM_PAGE_SIZE);
 
   ASSERT(byte != NULL);
   ASSERT(word != NULL);
@@ -225,14 +226,13 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   log_info(
       "Heap test passed: %d bytes across %d pages\n",
       heap_used_bytes(),
-      heap_mapped_pages()
-  );
+      heap_mapped_pages());
 
-  void* freed_byte_address = byte;
+  void *freed_byte_address = byte;
   kfree(byte);
   byte = NULL;
 
-  uint8_t* reused_byte = kmalloc(1);
+  uint8_t *reused_byte = kmalloc(1);
 
   ASSERT(reused_byte == freed_byte_address);
 
@@ -242,13 +242,13 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   log_info("Heap allocation/free test passed\n");
 
   uint32_t mapped_pages_before_split = heap_mapped_pages();
-  void* large_address = large;
+  void *large_address = large;
 
   kfree(large);
   large = NULL;
 
-  uint8_t* small_from_large = kmalloc(64);
-  uint8_t* remainder_from_large = kmalloc(4000);
+  uint8_t *small_from_large = kmalloc(64);
+  uint8_t *remainder_from_large = kmalloc(4000);
 
   ASSERT(small_from_large == large_address);
   ASSERT(remainder_from_large != NULL);
@@ -263,6 +263,35 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   ASSERT(remainder_from_large[3999] == 0x33);
 
   log_info("Heap block-splitting test passed\n");
+
+  uint8_t *left = kmalloc(128);
+  uint8_t *right = kmalloc(128);
+
+  ASSERT(left != NULL);
+  ASSERT(right != NULL);
+
+  uint32_t mapped_pages_before_merge = heap_mapped_pages();
+  uint32_t heap_used_before_merge = heap_used_bytes();
+
+  kfree(left);
+  kfree(right);
+
+  left = NULL;
+  right = NULL;
+
+  uint8_t *merged = kmalloc(256);
+
+  ASSERT(heap_used_bytes() == heap_used_before_merge);
+  ASSERT(heap_mapped_pages() == mapped_pages_before_merge);
+
+
+  merged[0] = 0x44;
+  merged[255] = 0x55;
+
+  ASSERT(merged[0] == 0x44);
+  ASSERT(merged[255] == 0x55);
+
+  log_info("Heap block-coalescing test passed\n");
 
   pic_init();
 

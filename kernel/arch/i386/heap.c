@@ -170,9 +170,27 @@ void *kmalloc(size_t size)
     return (uint8_t *)block + HEAP_HEADER_SIZE;
 }
 
+static bool blocks_are_adjacent(
+    const struct heap_block* first,
+    const struct heap_block* second
+) {
+    return (uint32_t)first + HEAP_HEADER_SIZE + first->size == (uint32_t)second;
+}
+
+static void merge_with_next(struct heap_block* block) {
+    struct heap_block* next = block->next;
+
+    if (next != NULL && blocks_are_adjacent(block, next)) {
+        block->size += HEAP_HEADER_SIZE + next->size;
+        block->next = next->next;
+    }
+}
+
 void kfree(void *pointer)
 {
     struct heap_block *block;
+    struct heap_block *previous = NULL;
+    struct heap_block *current = free_list;
 
     if (pointer == NULL)
     {
@@ -181,8 +199,24 @@ void kfree(void *pointer)
 
     block = (struct heap_block *)((uint8_t *)pointer - HEAP_HEADER_SIZE);
 
-    block->next = free_list;
-    free_list = block;
+    while(current != NULL && (uint32_t)current < (uint32_t)block) {
+        previous = current;
+        current = current->next;
+    }
+
+    block->next = current;
+
+    if (previous == NULL) {
+        free_list = block;
+    } else {
+        previous->next = block;
+    }
+
+    merge_with_next(block);
+
+    if (previous != NULL) {
+        merge_with_next(previous);
+    }
 }
 
 uint32_t heap_used_bytes(void)
