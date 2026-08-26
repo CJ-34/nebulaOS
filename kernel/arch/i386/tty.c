@@ -63,3 +63,12 @@ void terminal_writestring(const char* data) {
 	terminal_write(data, strlen(data));
 }
 
+void terminal_backspace(void) {
+	if (terminal_column == 0) {
+		return;
+	}
+
+	terminal_column--;
+	terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
+}
+

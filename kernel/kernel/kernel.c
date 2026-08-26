@@ -9,8 +9,10 @@
 #include <kernel/heap.h>
 
 #include <kernel/tty.h>
+#include <kernel/console.h>
 #include <kernel/vga.h>
 #include <kernel/log.h>
+#include <kernel/keyboard.h>
 
 #include <kernel/panic.h>
 #include <kernel/assert.h>
@@ -19,6 +21,9 @@
 
 extern char __kernel_start[];
 extern char __kernel_end[];
+
+#define PAGING_TEST_VIRTUAL 0x00400000u
+#define PAGING_TEST_VALUE 0x4E454255u
 
 static const char *memory_type_name(uint32_t type)
 {
@@ -61,6 +66,32 @@ static void log_memory_map(const multiboot_info_t *mbi)
         memory_type_name(entry->type));
 
     current += entry_total_size;
+  }
+}
+
+static void run_console(void)
+{
+  terminal_initialize();
+
+  printf("Welcome to ");
+  terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
+  printf("nebulaOS!\n");
+  terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
+
+  console_init();
+
+  log_info("Keyboard IRQ enabled; press keys in QEMU\n");
+
+  for (;;)
+  {
+    char character;
+
+    while (keyboard_pop_char(&character))
+    {
+      console_handle_char(character);
+    }
+
+    __asm__ volatile("hlt");
   }
 }
 
@@ -147,9 +178,6 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
       paging_first_table_physical());
 
   log_info("Paging enabled with first 4 MiB identity-mapped\n");
-
-#define PAGING_TEST_VIRTUAL 0x00400000u
-#define PAGING_TEST_VALUE 0x4E454255u
 
   uint32_t mapping_free_before = pmm_free_frames();
   uint32_t mapped_frame = pmm_allocate_frame();
@@ -301,7 +329,10 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
 
   log_info("Timer IRQ path installed; PIC still masked\n");
 
+  keyboard_init();
+
   pic_unmask_irq(0);
+  pic_unmask_irq(1);
 
   __asm__ volatile("sti" ::: "memory");
 
@@ -314,59 +345,9 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
     __asm__ volatile("hlt");
   }
 
-  __asm__ volatile("cli" ::: "memory");
-
   log_info(
       "Timer test passed: %d ticks\n",
       pit_ticks() - start_ticks);
 
-  // __asm__ volatile (
-  //   "xorl %%edx, %%edx\n\t"
-  //   "movl $1, %%eax\n\t"
-  //   "divl %%edx"
-  //   :
-  //   :
-  //   :"eax", "edx", "cc"
-  // );
-
-  // PANIC("Divide-by-zero test unexpectedly returned");
-
-  // log_info("Triggering invalid-opcode test\n");
-
-  // __asm__ volatile ("ud2");
-
-  // PANIC("Invalid-opcode test unexpectedly returned");
-
-  // log_info("Triggering general-protection-fault test\n");
-
-  // __asm__ volatile (
-  //   "movw $0x18, %%ax\n\t"
-  //   "movw %%ax, %%ds"
-  //   :
-  //   :
-  //   : "ax", "memory"
-  // );
-
-  // PANIC("General-protection-fault test unexpectedly returned");
-
-  uint16_t cs;
-  uint16_t ds;
-  uint16_t ss;
-
-  __asm__ volatile("movw %%cs, %0" : "=r"(cs));
-  __asm__ volatile("movw %%ds, %0" : "=r"(ds));
-  __asm__ volatile("movw %%ss, %0" : "=r"(ss));
-
-  log_info("cs == %x\n", cs);
-  log_info("ds == %x\n", ds);
-  log_info("ss == %x\n", ss);
-
-  // PANIC("Kernel reached an unrecoverable state");
-  // ASSERT(1 != 1);
-
-  terminal_initialize();
-
-  printf("Welcome to ");
-  terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
-  printf("nebulaOS!\n");
+  run_console();
 }

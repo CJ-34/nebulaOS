@@ -30,7 +30,7 @@ qemu-system-i386 -cdrom build/nebula.iso -serial stdio -display none
 4. `_start` selects the 16 KiB bootstrap stack and calls `kernel_main` with
    `kernel_main(magic, mbi)`.
 5. The kernel installs its GDT, serial logger, IDT, physical-memory manager,
-   paging structures, and timer path.
+   paging structures, PIT timer, PS/2 keyboard IRQ path, and text console.
 
 Until paging is enabled, the flat GDT means logical, linear, and physical
 addresses are numerically identical.
@@ -58,6 +58,7 @@ The IDT has handlers for:
 | 13 | General-protection fault | Yes |
 | 14 | Page fault | Yes |
 | 32 | PIT timer IRQ0 | No |
+| 33 | PS/2 keyboard IRQ1 | No |
 
 No-error-code exception stubs push a synthetic zero error code. Error-code
 stubs push only the vector because the CPU has already pushed the real error
@@ -66,13 +67,40 @@ code. Both paths then use the common exception frame and C panic dispatcher.
 ## Hardware interrupts
 
 The legacy 8259 PIC is remapped so IRQs 0--15 use IDT vectors 32--47. All
-IRQs start masked. The kernel unmasks only IRQ0 after the IDT gate and PIT
-handler are ready.
+IRQs start masked. The kernel unmasks IRQ0 and IRQ1 only after their IDT gates
+and handlers are ready.
 
 The PIT is programmed for approximately 100 Hz. Its handler increments a
 volatile tick counter and sends an EOI to the PIC. The current boot test
-enables interrupts, waits with `hlt` for 100 ticks, logs the result, and then
-disables interrupts again.
+enables interrupts, waits with `hlt` for 100 ticks, and logs the result. IRQs
+remain enabled for the interactive console that follows.
+
+The PS/2 keyboard driver reads one scan code from port `0x60` on IRQ1, places
+it in a 64-byte ring buffer, and immediately sends an EOI. The main kernel
+loop consumes that buffer and translates basic Set-1 make codes into ASCII.
+It handles left/right Shift, Enter, Backspace, and printable US-layout keys;
+extended and key-release codes are ignored after Shift state is updated.
+
+## Kernel console
+
+After boot tests complete, NebulaOS initializes the VGA text terminal and
+enters an interrupt-driven console loop. The loop drains keyboard characters,
+edits a bounded 64-character input line, and halts with `hlt` while no input
+is pending. This avoids busy-waiting and lets hardware interrupts wake the CPU.
+
+Current commands are:
+
+| Command | Purpose |
+| --- | --- |
+| `help` | List console commands. |
+| `clear` | Clear and reinitialize the VGA terminal. |
+| `mem` | Print PMM total and free frame counts. |
+| `heap` | Print heap high-water usage and mapped-page count. |
+| `ticks` | Print the PIT interrupt count. |
+| `panic` | Deliberately invoke the kernel panic path. |
+
+`heaptest` is an experimental placeholder and deliberately reports that it is
+not implemented. It is not listed by `help` yet.
 
 ## Physical memory manager
 
@@ -124,27 +152,29 @@ small header directly before its payload:
 [ payload size | free-list next pointer ][ caller payload ]
 ```
 
-`kfree()` recovers that header from the payload pointer and adds the block to a
-singly linked free list. `kmalloc()` searches that list before extending the
-heap, so an appropriately sized released block can be reused without mapping a
-new physical frame.
+`kfree()` recovers that header from the payload pointer and inserts the block
+into an address-sorted singly linked free list. `kmalloc()` searches that list
+before extending the heap, so a released block can be reused without mapping a
+new physical frame. An oversized free block is split when the remainder can
+hold another header and aligned payload; adjacent free blocks are coalesced on
+free.
 
-The current heap is intentionally simple: it does not split oversized blocks,
-coalesce adjacent blocks, shrink mapped pages, validate pointers, detect
-double-frees, or synchronize concurrent callers.
+The current heap is intentionally simple: it does not shrink mapped pages,
+validate pointers, detect double-frees, or synchronize concurrent callers.
 
 ## Current limits and next work
 
 - Only the first 4 MiB is mapped after paging is enabled.
 - The kernel uses one flat ring-0 address space; there is no userspace or TSS.
-- The exception dispatcher reports page faults but does not yet read `CR2`.
-- IRQ0 is the only unmasked hardware interrupt.
+- The exception dispatcher reports page faults and reads `CR2`, but recovery
+  policy is not implemented.
+- IRQ0 and IRQ1 are the only unmasked hardware interrupts.
 - PMM allocation is a linear bitmap scan and has no locking for concurrent
   allocation.
 - Heap free-list operations are not yet synchronized and have no fragmentation
   control.
 
-The next useful paging milestone is a general page-mapping interface, then a
-controlled page-fault test and an explicit policy for mapping physical frames
-above the initial 4 MiB identity map. The next heap milestone is block
-splitting and coalescing.
+The next useful input milestone is a small diagnostic command such as
+`heaptest`, which can demonstrate allocation reuse, splitting, and coalescing
+without changing allocator code. Longer-term input work includes modifier
+locking, extended keys, and a keyboard layout abstraction.

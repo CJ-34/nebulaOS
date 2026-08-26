@@ -26,6 +26,19 @@
         pushl $14
         jmp isr_common
 
+    .global irq_keyboard
+    .type irq_keyboard, @function
+    irq_keyboard:
+        pusha
+        cld
+
+        call keyboard_handle_irq
+
+        popa
+        iret
+
+    .size irq_keyboard, . - irq_keyboard
+
     .global irq_timer
     .type irq_timer, @function
     irq_timer:
