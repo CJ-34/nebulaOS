@@ -51,6 +51,18 @@
         iret
     .size irq_timer, . - irq_timer
 
+    .global syscall_entry
+    .type syscall_entry, @function
+    syscall_entry:
+        pusha
+        cld
+
+        call syscall_handler
+
+        popa
+        iret
+    .size syscall_entry, . - syscall_entry
+
   .type isr_common, @function
   isr_common:
       pusha

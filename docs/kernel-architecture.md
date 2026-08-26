@@ -37,17 +37,24 @@ addresses are numerically identical.
 
 ## CPU protection state
 
-The kernel owns a three-entry GDT:
+The kernel owns a six-entry GDT:
 
 | Selector | Descriptor |
 | --- | --- |
 | `0x00` | Null descriptor |
 | `0x08` | Ring-0, flat 32-bit code segment |
 | `0x10` | Ring-0, flat 32-bit data/stack segment |
+| `0x1B` | Ring-3, flat 32-bit code segment |
+| `0x23` | Ring-3, flat 32-bit data/stack segment |
+| `0x28` | Ring-0, available 32-bit TSS |
 
 `gdt_load.S` executes `lgdt`, uses a far jump to reload `CS`, then reloads
 the data segment registers. The boot self-check confirms the active GDT and
-that `CS == 0x08`, `DS == SS == 0x10`.
+that the task register contains selector `0x28` after `ltr` loads the TSS.
+
+The TSS is not used for hardware task switching. It supplies `SS0` and `ESP0`
+for privilege changes: when ring-3 code enters an interrupt gate, the CPU
+switches to the 16 KiB bootstrap stack before pushing the user return frame.
 
 The IDT has handlers for:
 
@@ -59,10 +66,15 @@ The IDT has handlers for:
 | 14 | Page fault | Yes |
 | 32 | PIT timer IRQ0 | No |
 | 33 | PS/2 keyboard IRQ1 | No |
+| 128 | Syscall interrupt | No |
 
 No-error-code exception stubs push a synthetic zero error code. Error-code
 stubs push only the vector because the CPU has already pushed the real error
 code. Both paths then use the common exception frame and C panic dispatcher.
+
+Vector `0x80` is a present 32-bit interrupt gate with DPL 3 (`0xEE`), so it is
+the only software interrupt currently callable from ring 3. Exception and IRQ
+gates remain ring-0-only.
 
 ## Hardware interrupts
 
@@ -97,6 +109,7 @@ Current commands are:
 | `mem` | Print PMM total and free frame counts. |
 | `heap` | Print heap high-water usage and mapped-page count. |
 | `heaptest` | Exercise released-block reuse and writable heap memory. |
+| `usertest` | Enter the controlled ring-3 syscall demonstration. |
 | `ticks` | Print the PIT interrupt count. |
 | `panic` | Deliberately invoke the kernel panic path. |
 
@@ -105,6 +118,10 @@ the block, then requests 64 bytes. It verifies that the high-water mark does
 not increase—which means the allocator used an existing free block rather than
 extending the heap—and verifies writes at offsets 0 and 63 of the returned
 payload. It frees the test allocation before returning to the console.
+
+`usertest` does not return to the console. It enters the initial user program,
+which executes `int $0x80`; the kernel logs the syscall on COM1 and returns to
+an intentional user-mode loop. Reset QEMU after using this diagnostic.
 
 ## VGA text terminal
 
@@ -153,6 +170,32 @@ PMM bitmap, Multiboot data, VGA memory, GDT/IDT data, and the initial paging
 structures. `paging_enable()` loads the page-directory physical address into
 `CR3` and sets `CR0.PG`; `paging_is_enabled()` verifies that bit afterward.
 
+`paging_map_page()` supports a `PAGING_PAGE_USER` flag. For a user mapping it
+sets the x86 U/S bit in both the PDE and PTE; both must permit user access.
+Kernel mappings remain supervisor-only by default.
+
+## Initial user mode
+
+NebulaOS prepares one isolated ring-3 address-space region:
+
+```text
+0x00800000  user code page: user, read/execute
+0x00801000  unmapped guard page
+0x00802000  user stack page: user, writable
+0x00803000  initial user ESP
+```
+
+The code and stack frames are allocated through the PMM, zeroed before they
+become user-visible, and mapped outside the kernel's initial identity map. The
+initial code bytes execute `int $0x80` and then loop. `user_mode_enter()` loads
+the user data selectors, builds an `iret` frame containing user `SS`, `ESP`,
+`EFLAGS`, `CS`, and `EIP`, and enters ring 3.
+
+The syscall entry stub saves registers, calls the current C handler, and
+returns with `iret`. This proves the GDT, TSS stack switch, user page
+permissions, IDT DPL, and ring transition work together. It is not yet a
+general syscall ABI or process model.
+
 ## Kernel heap
 
 The heap begins at virtual address `0x00400000`, immediately above the initial
@@ -178,16 +221,21 @@ validate pointers, detect double-frees, or synchronize concurrent callers.
 
 ## Current limits and next work
 
-- Only the first 4 MiB is mapped after paging is enabled.
-- The kernel uses one flat ring-0 address space; there is no userspace or TSS.
+- The bootstrap identity map covers only the first 4 MiB; other mappings are
+  created explicitly through `paging_map_page()`.
+- User mode has one fixed code page and one fixed stack page; there are no
+  processes, address spaces, executable loader, or scheduler yet.
 - The exception dispatcher reports page faults and reads `CR2`, but recovery
   policy is not implemented.
+- Exception frames do not yet retain the user `ESP` and `SS` pushed during a
+  ring-3 exception.
 - IRQ0 and IRQ1 are the only unmasked hardware interrupts.
 - PMM allocation is a linear bitmap scan and has no locking for concurrent
   allocation.
 - Heap free-list operations are not yet synchronized and have no fragmentation
   control.
 
-The next useful console milestone is command arguments or a dedicated
-diagnostic interface for inspecting allocator state. Longer-term input work
+The next user-mode milestone is a syscall register frame so the handler can
+receive a syscall number and arguments. Returning from a user process then
+requires saved execution contexts and scheduling. Longer-term input work
 includes modifier locking, extended keys, and a keyboard layout abstraction.

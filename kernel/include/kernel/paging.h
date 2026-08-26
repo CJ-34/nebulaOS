@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #define PAGING_PAGE_WRITABLE 0x002u
+#define PAGING_PAGE_USER 0x004u
 
 bool paging_map_page(
     uint32_t virtual_address,

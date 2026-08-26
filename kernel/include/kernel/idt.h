@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define SYSCALL_VECTOR 0x80
 #define IDT_ENTRY_COUNT 256
 
 struct idt_entry {

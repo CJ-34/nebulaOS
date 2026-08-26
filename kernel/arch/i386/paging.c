@@ -160,12 +160,14 @@ bool paging_map_page(uint32_t virtual_address, uint32_t physical_address, uint32
         page_table = (uint32_t *)page_table_physical;
     }
 
+    page_directory[directory_index] |= flags & PAGING_PAGE_USER;
+
     if (page_table[table_index] & PAGE_PRESENT)
     {
         return false;
     }
 
-    page_table[table_index] = physical_address | PAGE_PRESENT | (flags & PAGING_PAGE_WRITABLE);
+    page_table[table_index] = physical_address | PAGE_PRESENT | (flags & (PAGING_PAGE_WRITABLE | PAGING_PAGE_USER));
 
     paging_invalidate(virtual_address);
     return true;

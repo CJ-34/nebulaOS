@@ -9,6 +9,7 @@
 #include <kernel/pit.h>
 
 #include <kernel/panic.h>
+#include <kernel/user_mode.h>
 
 #define CONSOLE_LINE_CAPACITY 64
 
@@ -115,7 +116,7 @@ static void console_submit_line(void)
 
     if (line_equals("help"))
     {
-        terminal_writestring("commands: help clear mem heap heaptest ticks panic\n");
+        terminal_writestring("commands: help clear mem heap heaptest usertest ticks panic\n");
     }
     else if (line_equals("clear"))
     {
@@ -140,6 +141,10 @@ static void console_submit_line(void)
     else if (line_equals("heaptest"))
     {
         console_run_heaptest();
+    }
+    else if (line_equals("usertest")) {
+        terminal_writestring("Entering user mode\n");
+        user_mode_enter(USER_CODE_VIRTUAL, USER_STACK_TOP);
     }
     else if (line_equals("ticks"))
     {

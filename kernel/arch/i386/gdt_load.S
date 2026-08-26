@@ -19,3 +19,12 @@ gdt_reload_segments:
   ret
 
 .size gdt_load, . - gdt_load
+
+.global tss_load
+.type tss_load, @function
+tss_load:
+  movw 4(%esp), %ax
+  ltr %ax
+  ret
+
+.size tss_load, . - tss_load

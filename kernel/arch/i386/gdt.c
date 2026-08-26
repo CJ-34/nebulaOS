@@ -1,10 +1,15 @@
 #include <stdint.h>
 #include <kernel/gdt.h>
 
-#define GDT_ENTRY_COUNT 3
+#include <i386/tss.h>
+
+#define GDT_ENTRY_COUNT 6
+
+extern char stack_top[];
 
 static struct gdt_entry gdt_entries[GDT_ENTRY_COUNT];
 static struct gdt_pointer gdt_ptr;
+static struct tss_entry tss;
 
 static void gdt_set_entry(
   struct gdt_entry* entry,
@@ -27,11 +32,21 @@ void gdt_init(void) {
 
   gdt_set_entry(&gdt_entries[1], 0, 0xFFFFF, 0x9A, 0xC0);
   gdt_set_entry(&gdt_entries[2], 0, 0xFFFFF, 0x92, 0xC0);
+  gdt_set_entry(&gdt_entries[3], 0, 0xFFFFF, 0xFA, 0xC0);
+  gdt_set_entry(&gdt_entries[4], 0, 0xFFFFF, 0xF2, 0xC0);
+
+  tss = (struct tss_entry) {0};
+  tss.esp0 = (uint32_t)stack_top;
+  tss.ss0 = GDT_KERNEL_DATA_SELECTOR;
+  tss.iomap_base = sizeof(tss);
+
+  gdt_set_entry(&gdt_entries[5], (uint32_t)&tss, sizeof(tss) - 1, 0x89, 0x00);
 
   gdt_ptr.limit = sizeof(gdt_entries) - 1;
   gdt_ptr.base = (uint32_t)gdt_entries;
 
   gdt_load(&gdt_ptr);
+  tss_load(GDT_TSS_SELECTOR);
 }
 
 bool gdt_is_loaded(void) {
@@ -40,4 +55,13 @@ bool gdt_is_loaded(void) {
   __asm__ volatile ("sgdt %0" : "=m"(current_ptr));
 
   return current_ptr.base == gdt_ptr.base && current_ptr.limit == gdt_ptr.limit;
+}
+
+bool gdt_is_tss_loaded(void)
+{
+    uint16_t selector;
+
+    __asm__ volatile("str %0" : "=r"(selector));
+
+    return selector == GDT_TSS_SELECTOR;
 }

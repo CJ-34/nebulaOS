@@ -7,6 +7,7 @@
 #include <kernel/pmm.h>
 #include <kernel/paging.h>
 #include <kernel/heap.h>
+#include <kernel/user_mode.h>
 
 #include <kernel/tty.h>
 #include <kernel/console.h>
@@ -108,6 +109,10 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   if (!gdt_is_loaded())
   {
     PANIC("GDT was not loaded");
+  }
+
+  if (!gdt_is_tss_loaded()) {
+    PANIC("TSS was not loaded");
   }
 
   log_init();
@@ -320,6 +325,12 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   ASSERT(merged[255] == 0x55);
 
   log_info("Heap block-coalescing test passed\n");
+
+  if (!user_mode_prepare()) {
+    PANIC("Could not prepare user-mode memory");
+  }
+
+  log_info("User code and stack pages mapped\n");
 
   pic_init();
 
