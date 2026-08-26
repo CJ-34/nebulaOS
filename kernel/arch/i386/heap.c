@@ -32,13 +32,38 @@ static struct heap_block *take_free_block(uint32_t size)
     {
         if (block->size >= size)
         {
-            if (previous == NULL)
+
+            uint32_t remaining_size = block->size - size;
+            if (remaining_size >= HEAP_HEADER_SIZE + HEAP_ALIGNMENT)
             {
-                free_list = block->next;
+                struct heap_block* remainder = (struct heap_block*)(
+                    (uint8_t*)block + HEAP_HEADER_SIZE + size
+                );
+
+                remainder->size = remaining_size - HEAP_HEADER_SIZE;
+                remainder->next = block->next;
+
+                if (previous == NULL)
+                {
+                    free_list = remainder;
+                }
+                else
+                {
+                    previous->next = remainder;
+                }
+
+                block->size = size;
             }
             else
             {
-                previous->next = block->next;
+                if (previous == NULL)
+                {
+                    free_list = block->next;
+                }
+                else
+                {
+                    previous->next = block->next;
+                }
             }
 
             return block;

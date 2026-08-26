@@ -241,6 +241,29 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
 
   log_info("Heap allocation/free test passed\n");
 
+  uint32_t mapped_pages_before_split = heap_mapped_pages();
+  void* large_address = large;
+
+  kfree(large);
+  large = NULL;
+
+  uint8_t* small_from_large = kmalloc(64);
+  uint8_t* remainder_from_large = kmalloc(4000);
+
+  ASSERT(small_from_large == large_address);
+  ASSERT(remainder_from_large != NULL);
+  ASSERT(heap_mapped_pages() == mapped_pages_before_split);
+
+  small_from_large[0] = 0x11;
+  remainder_from_large[0] = 0x22;
+  remainder_from_large[3999] = 0x33;
+
+  ASSERT(small_from_large[0] == 0x11);
+  ASSERT(remainder_from_large[0] == 0x22);
+  ASSERT(remainder_from_large[3999] == 0x33);
+
+  log_info("Heap block-splitting test passed\n");
+
   pic_init();
 
   log_info("PIC remapped; all IRQs masked\n");
