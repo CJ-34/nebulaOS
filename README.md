@@ -51,11 +51,11 @@ docs/              design and architecture notes
 ## Documentation
 
 See [Kernel architecture](docs/kernel-architecture.md) for the boot sequence,
-CPU protection state, interrupt flow, physical memory manager, paging layout,
-and current limitations.
+CPU protection state, interrupt flow, memory layout, and current limitations.
+See the [kernel API reference](docs/api/README.md) for one focused document per
+public kernel interface.
 
 ## Near-term direction
 
-The next paging milestone is a general mapping interface and a controlled
-page-fault test. That will make it possible to map PMM-allocated frames above
-the initial 4 MiB identity map.
+The next user-mode milestone is a syscall register frame, followed by saved
+execution contexts and scheduling so a user process can return or exit cleanly.
