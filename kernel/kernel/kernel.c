@@ -188,20 +188,34 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
 
   log_info("Paging enabled with first 4 MiB identity-mapped\n");
 
-  struct task boot_task = {
-      .id = 0,
-      .state = TASK_RUNNING,
-      .page_directory_physical = paging_directory_physical(),
-      .kernel_stack_top = (uint32_t)stack_top,
-  };
+  task_system_init(
+    paging_directory_physical(),
+    (uint32_t) stack_top
+  );
 
-  ASSERT(boot_task.id == 0);
-  ASSERT(boot_task.state == TASK_RUNNING);
-  ASSERT(boot_task.page_directory_physical ==
+  struct task *boot_task = task_current();
+
+  ASSERT(boot_task != NULL);
+  ASSERT(boot_task->id == 0);
+  ASSERT(boot_task->state == TASK_RUNNING);
+  ASSERT(boot_task->page_directory_physical ==
          paging_directory_physical());
-  ASSERT(boot_task.kernel_stack_top == (uint32_t)stack_top);
+  ASSERT(boot_task->kernel_stack_top == (uint32_t)stack_top);
 
-  log_info("Boot task model test passed\n");
+  struct task *ready_task = task_create(
+    paging_directory_physical(),
+    (uint32_t)stack_top);
+
+  ASSERT(ready_task != NULL);
+  ASSERT(ready_task->id == 1);
+  ASSERT(ready_task->state == TASK_READY);
+  ASSERT(ready_task->page_directory_physical ==
+         paging_directory_physical());
+  ASSERT(ready_task->kernel_stack_top == (uint32_t)stack_top);
+
+  ASSERT(task_current() == boot_task);
+
+  log_info("Task system test passed\n");
 
   uint32_t mapping_free_before = pmm_free_frames();
   uint32_t mapped_frame = pmm_allocate_frame();
