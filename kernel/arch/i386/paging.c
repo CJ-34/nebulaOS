@@ -7,6 +7,7 @@
 
 #define PAGE_PRESENT 0x001
 #define PAGE_WRITABLE 0x002
+#define PAGE_USER 0x004
 
 #define PAGE_FRAME_MASK 0xFFFFF000u
 
@@ -118,6 +119,82 @@ static void paging_invalidate(uint32_t virtual_address)
             : "r"(virtual_address)
             : "memory");
     }
+}
+
+bool paging_is_user_accessible(
+    uint32_t virtual_address,
+    bool require_writable
+) {
+    uint32_t *page_directory;
+    uint32_t *page_table;
+    uint32_t directory_index;
+    uint32_t table_index;
+    uint32_t directory_entry;
+    uint32_t table_entry;
+
+    if (page_directory_physical == PMM_INVALID_FRAME) {
+        return false;
+    }
+
+    page_directory = (uint32_t *)page_directory_physical;
+    directory_index = virtual_address >> 22;
+    table_index = (virtual_address >> 12) & 0x3FF;
+
+    directory_entry = page_directory[directory_index];
+
+    if (!(directory_entry & PAGE_PRESENT) || !(directory_entry & PAGE_USER)) {
+        return false;
+    }
+
+    page_table = (uint32_t *)(directory_entry & PAGE_FRAME_MASK);
+    table_entry = page_table[table_index];
+
+    if (!(table_entry & PAGE_PRESENT) || !(table_entry & PAGE_USER)) {
+        return false;
+    }
+
+    if (require_writable && (!(directory_entry & PAGE_WRITABLE) || !(table_entry & PAGE_WRITABLE))) {
+        return false;
+    }
+
+    return true;
+}
+
+bool paging_is_user_range_accessible(
+    uint32_t virtual_address,
+    uint32_t length,
+    bool require_writable
+) {
+    uint32_t current_page;
+    uint32_t last_address;
+    uint32_t last_page;
+
+    if (length == 0) {
+        return true;
+    }
+
+    last_address = virtual_address + length - 1;
+
+    if (last_address < virtual_address) {
+        return false;
+    }
+
+    current_page = virtual_address & PAGE_FRAME_MASK;
+    last_page = last_address & PAGE_FRAME_MASK;
+
+    for (;;) {
+        if (!paging_is_user_accessible(current_page, require_writable)) {
+            return false;
+        }
+
+        if (current_page == last_page) {
+            break;
+        }
+
+        current_page += PMM_PAGE_SIZE;
+    }
+
+    return true;
 }
 
 bool paging_map_page(uint32_t virtual_address, uint32_t physical_address, uint32_t flags)

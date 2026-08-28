@@ -111,7 +111,8 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
     PANIC("GDT was not loaded");
   }
 
-  if (!gdt_is_tss_loaded()) {
+  if (!gdt_is_tss_loaded())
+  {
     PANIC("TSS was not loaded");
   }
 
@@ -317,7 +318,6 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   ASSERT(heap_used_bytes() == heap_used_before_merge);
   ASSERT(heap_mapped_pages() == mapped_pages_before_merge);
 
-
   merged[0] = 0x44;
   merged[255] = 0x55;
 
@@ -326,11 +326,44 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
 
   log_info("Heap block-coalescing test passed\n");
 
-  if (!user_mode_prepare()) {
+  if (!user_mode_prepare())
+  {
     PANIC("Could not prepare user-mode memory");
   }
 
   log_info("User code and stack pages mapped\n");
+
+  ASSERT(paging_is_user_accessible(USER_CODE_VIRTUAL, false));
+  ASSERT(!paging_is_user_accessible(USER_CODE_VIRTUAL, true));
+
+  ASSERT(paging_is_user_accessible(USER_STACK_VIRTUAL, false));
+  ASSERT(paging_is_user_accessible(USER_STACK_VIRTUAL, true));
+
+  ASSERT(!paging_is_user_accessible(0x00801000u, false));
+  ASSERT(!paging_is_user_accessible(0x00100000u, false));
+
+  log_info("User-page permission test passed\n");
+
+  ASSERT(paging_is_user_range_accessible(
+      USER_CODE_VIRTUAL + PMM_PAGE_SIZE - 16,
+      16,
+      false));
+
+  ASSERT(!paging_is_user_range_accessible(
+      USER_CODE_VIRTUAL + PMM_PAGE_SIZE - 16,
+      17,
+      false));
+
+  ASSERT(paging_is_user_range_accessible(
+      USER_STACK_VIRTUAL + PMM_PAGE_SIZE - 16,
+      16,
+      true));
+
+  ASSERT(paging_is_user_range_accessible(0xFFFFFFFFu, 0, false));
+
+  ASSERT(!paging_is_user_range_accessible(0xFFFFFFF0u, 32, false));
+
+  log_info("User-range permission test passed\n");
 
   pic_init();
 

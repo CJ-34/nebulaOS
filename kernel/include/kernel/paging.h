@@ -22,5 +22,7 @@ uint32_t paging_first_table_physical(void);
 
 bool paging_enable(void);
 bool paging_is_enabled(void);
+bool paging_is_user_accessible(uint32_t virtual_address, bool require_writable);
+bool paging_is_user_range_accessible(uint32_t virtual_address, uint32_t length, bool require_writable);
 
 #endif
