@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #define TASK_MAX_COUNT 16u
+#define TASK_KERNEL_STACK_SIZE 16384u
 
 enum task_state {
     TASK_UNUSED,
@@ -28,9 +29,6 @@ void task_system_init(
 
 struct task *task_current(void);
 
-struct task *task_create(
-    uint32_t page_directory,
-    uint32_t kernel_stack_top
-);
+struct task *task_create(uint32_t page_directory);
 
 #endif

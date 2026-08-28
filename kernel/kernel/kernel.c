@@ -202,16 +202,18 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
          paging_directory_physical());
   ASSERT(boot_task->kernel_stack_top == (uint32_t)stack_top);
 
-  struct task *ready_task = task_create(
-    paging_directory_physical(),
-    (uint32_t)stack_top);
+  struct task *ready_task = task_create(paging_directory_physical());
 
   ASSERT(ready_task != NULL);
   ASSERT(ready_task->id == 1);
   ASSERT(ready_task->state == TASK_READY);
   ASSERT(ready_task->page_directory_physical ==
          paging_directory_physical());
-  ASSERT(ready_task->kernel_stack_top == (uint32_t)stack_top);
+  ASSERT(ready_task->kernel_stack_top != 0u);
+  ASSERT(ready_task->kernel_stack_top !=
+         boot_task->kernel_stack_top);
+  ASSERT((ready_task->kernel_stack_top & 0xFu) == 0u);
+
 
   ASSERT(task_current() == boot_task);
 
