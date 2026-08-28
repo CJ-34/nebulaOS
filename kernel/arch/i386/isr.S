@@ -57,8 +57,9 @@
         pusha
         cld
 
+        pushl %esp
         call syscall_handler
-
+        addl $4, %esp
         popa
         iret
     .size syscall_entry, . - syscall_entry
