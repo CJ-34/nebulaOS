@@ -8,6 +8,7 @@
 #include <kernel/paging.h>
 #include <kernel/heap.h>
 #include <kernel/user_mode.h>
+#include <kernel/usercopy.h>
 
 #include <kernel/tty.h>
 #include <kernel/console.h>
@@ -330,6 +331,22 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   {
     PANIC("Could not prepare user-mode memory");
   }
+
+  uint8_t copied_byte = 0;
+
+  ASSERT(copy_from_user(
+      &copied_byte,
+      USER_CODE_VIRTUAL,
+      sizeof(copied_byte)));
+
+  ASSERT(copied_byte == 0xBB);
+
+  ASSERT(!copy_from_user(
+      &copied_byte,
+      0x00801000u,
+      sizeof(copied_byte)));
+
+  log_info("User-copy test passed\n");
 
   log_info("User code and stack pages mapped\n");
 

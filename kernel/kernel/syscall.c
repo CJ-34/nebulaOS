@@ -2,7 +2,7 @@
 #include <kernel/syscall.h>
 
 #include <kernel/drivers/serial.h>
-#include <kernel/paging.h>
+#include <kernel/usercopy.h>
 
 #define SYSCALL_WRITE_MAX_LENGTH 128u
 
@@ -20,13 +20,14 @@ void syscall_handler(struct syscall_frame *frame)
         break;
 
     case SYSCALL_WRITE:
-        if (frame->ecx > SYSCALL_WRITE_MAX_LENGTH || !paging_is_user_range_accessible(frame->ebx, frame->ecx, false)) {
+        char buffer[SYSCALL_WRITE_MAX_LENGTH];
+        if (frame->ecx > SYSCALL_WRITE_MAX_LENGTH || !copy_from_user(buffer, frame->ebx, frame->ecx)) {
             log_error("Invalid user write: address=%x length=%x\n", frame->ebx, frame->ecx);
             frame->eax = SYSCALL_ERROR_INVALID_ARGUMENT;
             break;
         }
 
-        serial_write_buffer((const char *)frame->ebx, frame->ecx);
+        serial_write_buffer(buffer, frame->ecx);
         frame->eax = frame->ecx;
         break;
     default:

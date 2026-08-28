@@ -26,6 +26,8 @@ For `SYSCALL_WRITE`, `EBX` is the user virtual address and `ECX` is the byte
 count. The count is limited to 128 bytes. Before reading the buffer, the
 kernel verifies that the entire range is user-accessible; an invalid range or
 excessive length returns `SYSCALL_ERROR_INVALID_ARGUMENT` (`0xFFFFFFFF`) in
-EAX. A successful call returns the number of bytes written in EAX.
+EAX. A successful call returns the number of bytes written in EAX. The buffer
+is copied into kernel-local memory with `copy_from_user()` before the serial
+driver uses it.
 
 There are not yet conventions for further arguments or process-exit semantics.

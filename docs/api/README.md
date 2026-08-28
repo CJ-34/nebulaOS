@@ -21,6 +21,7 @@ userspace ABI.
 | `pmm.h` | [Physical memory manager](pmm.md) |
 | `syscall.h` | [Syscall](syscall.md) |
 | `tty.h` | [Text terminal](tty.md) |
+| `usercopy.h` | [User-copy](usercopy.md) |
 | `user_mode.h` | [User mode](user-mode.md) |
 | `vga.h` | [VGA helpers](vga.md) |
 
