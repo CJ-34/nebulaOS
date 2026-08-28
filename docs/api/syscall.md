@@ -9,8 +9,9 @@ stub. The stub saves the general-purpose registers, passes a pointer to a
 `frame->eax` contains the syscall number. `SYSCALL_TEST` is number `1`; it
 logs the first argument. `SYSCALL_ECHO` is number `2`; it returns that first
 argument unchanged. `SYSCALL_WRITE` is number `3`; it writes a validated
-user-supplied byte buffer to the serial output. Other syscall numbers are
-logged as errors.
+user-supplied byte buffer to the serial output. `SYSCALL_GET_TICKS` is number
+`4`; it returns the current PIT tick count. Other syscall numbers are logged
+as errors.
 
 The current register ABI is:
 
@@ -29,5 +30,9 @@ excessive length returns `SYSCALL_ERROR_INVALID_ARGUMENT` (`0xFFFFFFFF`) in
 EAX. A successful call returns the number of bytes written in EAX. The buffer
 is copied into kernel-local memory with `copy_from_user()` before the serial
 driver uses it.
+
+`SYSCALL_GET_TICKS` has no input arguments. It reads the current kernel PIT
+tick count and returns it in EAX. As a 32-bit counter it eventually wraps; it
+is a tick count, not a wall-clock time API.
 
 There are not yet conventions for further arguments or process-exit semantics.

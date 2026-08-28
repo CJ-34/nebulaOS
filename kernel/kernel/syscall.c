@@ -1,6 +1,8 @@
 #include <kernel/log.h>
 #include <kernel/syscall.h>
 
+#include <kernel/pit.h>
+
 #include <kernel/drivers/serial.h>
 #include <kernel/usercopy.h>
 
@@ -29,6 +31,10 @@ void syscall_handler(struct syscall_frame *frame)
 
         serial_write_buffer(buffer, frame->ecx);
         frame->eax = frame->ecx;
+        break;
+
+    case SYSCALL_GET_TICKS:
+        frame->eax = pit_ticks();
         break;
     default:
         log_error("Unknown syscall number: %x\n", frame->eax);
