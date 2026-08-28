@@ -16,11 +16,7 @@ static uint32_t next_task_id;
 static __attribute__((noreturn)) void task_bootstrap(void)
 {
     current_task->entry();
-
-    for (;;)
-    {
-        __asm__ volatile("hlt");
-    }
+    task_exit();
 }
 
 static uint32_t task_prepare_initial_stack(uint32_t stack_top) {
@@ -112,3 +108,33 @@ void task_yield(void)
         next->stack_pointer
     );
 }
+
+  void task_exit(void)
+  {
+      struct task *previous = current_task;
+      struct task *next;
+
+      previous->state = TASK_TERMINATED;
+
+      next = task_find_ready();
+
+      if (next == NULL)
+      {
+          for (;;)
+          {
+              __asm__ volatile("cli; hlt");
+          }
+      }
+
+      next->state = TASK_RUNNING;
+      current_task = next;
+
+      task_switch(
+          &previous->stack_pointer,
+          next->stack_pointer);
+
+      for (;;)
+      {
+          __asm__ volatile("cli; hlt");
+      }
+  }

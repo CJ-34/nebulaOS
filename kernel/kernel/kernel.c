@@ -105,13 +105,6 @@ static void task_test_worker(void)
 {
     task_worker_ran = true;
     log_info("Worker task entered\n");
-
-    task_yield();
-
-    for (;;)
-    {
-      task_yield();
-    }
 }
 
 
@@ -239,9 +232,10 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   task_yield();
 
   ASSERT(task_worker_ran);
+  ASSERT(ready_task->state == TASK_TERMINATED);
   ASSERT(task_current() == boot_task);
   ASSERT(boot_task->state == TASK_RUNNING);
-  ASSERT(ready_task->state == TASK_READY);
+
   log_info("Cooperative task switch test passed\n");
 
   log_info("Task system test passed\n");

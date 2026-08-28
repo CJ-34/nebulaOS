@@ -41,4 +41,7 @@ struct task *task_create(
 
 void task_yield(void);
 
+__attribute__((noreturn))
+void task_exit(void);
+
 #endif

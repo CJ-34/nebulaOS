@@ -45,14 +45,21 @@ stack, not a separate task field.
 
 A new task starts with a synthetic saved-register frame whose return address
 enters an internal bootstrap function. The bootstrap invokes `task->entry`.
-Task entry functions must not return; the current bootstrap halts forever if
-one does.
+If the entry function returns, the bootstrap calls `task_exit()`.
 
-All tasks currently share one page directory. There is no CR3 switch, exit
-path, runnable queue, round-robin policy, interrupt masking, or PIT-driven
-preemption. `task_yield()` is only safe for the controlled cooperative test
-that runs before interrupts are enabled.
+`task_exit()` is non-returning. It marks the current task
+`TASK_TERMINATED`, selects a ready successor, marks that task running, and
+context-switches away. A terminated task cannot be selected again because the
+scheduler considers only `TASK_READY` tasks. If no ready successor exists,
+the CPU disables interrupts and halts forever. Task slots and their stacks are
+not reclaimed yet; a future reaper or task-destruction path will handle that.
 
-The boot path tests this registry by creating one ready worker task, switching
-to it, and yielding back to task 0. It confirms that the worker ran, its stack
-differs from task 0's stack, and task 0 again becomes current.
+All tasks currently share one page directory. There is no CR3 switch,
+runnable queue, round-robin policy, stack reclamation, interrupt-safe
+scheduling, or PIT-driven preemption. `task_yield()` and `task_exit()` are
+only safe for the controlled cooperative test that runs before interrupts are
+enabled.
+
+The boot path tests this registry by creating one worker task, switching to
+it, and allowing its entry function to return. It confirms that the worker ran
+and became terminated, and that task 0 again becomes current.
