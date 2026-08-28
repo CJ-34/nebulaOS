@@ -5,6 +5,9 @@
 
 #define SYSCALL_TEST 1u
 #define SYSCALL_ECHO 2u
+#define SYSCALL_WRITE 3u
+
+#define SYSCALL_ERROR_INVALID_ARGUMENT 0xFFFFFFFFu
 
 struct syscall_frame {
     uint32_t edi;

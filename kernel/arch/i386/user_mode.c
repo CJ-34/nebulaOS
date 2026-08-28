@@ -5,20 +5,35 @@
 
 #include <string.h>
 
-static const uint8_t initial_user_code[] = {
-    0xBB, 0xEE, 0xFF, 0xC0, 0x00,
+#define INITIAL_USER_MESSAGE_OFFSET 0x100u
+#define INITIAL_USER_MESSAGE_VIRTUAL \
+    (USER_CODE_VIRTUAL + INITIAL_USER_MESSAGE_OFFSET)
 
-    0xB8, SYSCALL_ECHO, 0x00, 0x00, 0x00,
+static const uint8_t initial_user_message[] = "Hello from ring 3\n";
+
+#define INITIAL_USER_MESSAGE_LENGTH \
+    (sizeof(initial_user_message) - 1u)
+
+static const uint8_t initial_user_code[] = {
+    /* mov $INITIAL_USER_MESSAGE_VIRTUAL, %ebx */
+    0xBB, 0x00, 0x01, 0x80, 0x00,
+
+    /* mov $INITIAL_USER_MESSAGE_LENGTH, %ecx */
+    0xB9, INITIAL_USER_MESSAGE_LENGTH, 0x00, 0x00, 0x00,
+
+    /* mov $SYSCALL_WRITE, %eax; int $0x80 */
+    0xB8, SYSCALL_WRITE, 0x00, 0x00, 0x00,
     0xCD, 0x80,
 
+    /* Preserve SYSCALL_WRITE's EAX return value as TEST's EBX argument. */
     0x89, 0xC3,
 
+    /* mov $SYSCALL_TEST, %eax; int $0x80 */
     0xB8, SYSCALL_TEST, 0x00, 0x00, 0x00,
-
     0xCD, 0x80,
 
-    0xEB, 0xFE
-};
+    /* jmp . */
+    0xEB, 0xFE};
 
 bool user_mode_prepare(void)
 {
@@ -44,6 +59,10 @@ bool user_mode_prepare(void)
         (void *)code_frame,
         initial_user_code,
         sizeof(initial_user_code));
+
+    memcpy((uint8_t *)code_frame + INITIAL_USER_MESSAGE_OFFSET,
+           initial_user_message,
+           INITIAL_USER_MESSAGE_LENGTH);
 
     if (!paging_map_page(
             USER_CODE_VIRTUAL,
