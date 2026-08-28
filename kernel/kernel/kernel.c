@@ -9,6 +9,7 @@
 #include <kernel/heap.h>
 #include <kernel/user_mode.h>
 #include <kernel/usercopy.h>
+#include <kernel/task.h>
 
 #include <kernel/tty.h>
 #include <kernel/console.h>
@@ -23,6 +24,7 @@
 
 extern char __kernel_start[];
 extern char __kernel_end[];
+extern char stack_top[];
 
 #define PAGING_TEST_VIRTUAL 0x00400000u
 #define PAGING_TEST_VALUE 0x4E454255u
@@ -185,6 +187,21 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
       paging_first_table_physical());
 
   log_info("Paging enabled with first 4 MiB identity-mapped\n");
+
+  struct task boot_task = {
+      .id = 0,
+      .state = TASK_RUNNING,
+      .page_directory_physical = paging_directory_physical(),
+      .kernel_stack_top = (uint32_t)stack_top,
+  };
+
+  ASSERT(boot_task.id == 0);
+  ASSERT(boot_task.state == TASK_RUNNING);
+  ASSERT(boot_task.page_directory_physical ==
+         paging_directory_physical());
+  ASSERT(boot_task.kernel_stack_top == (uint32_t)stack_top);
+
+  log_info("Boot task model test passed\n");
 
   uint32_t mapping_free_before = pmm_free_frames();
   uint32_t mapped_frame = pmm_allocate_frame();

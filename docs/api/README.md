@@ -20,6 +20,7 @@ userspace ABI.
 | `pit.h` | [PIT](pit.md) |
 | `pmm.h` | [Physical memory manager](pmm.md) |
 | `syscall.h` | [Syscall](syscall.md) |
+| `task.h` | [Task](task.md) |
 | `tty.h` | [Text terminal](tty.md) |
 | `usercopy.h` | [User-copy](usercopy.md) |
 | `user_mode.h` | [User mode](user-mode.md) |
