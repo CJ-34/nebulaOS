@@ -29,6 +29,8 @@ extern char stack_top[];
 #define PAGING_TEST_VIRTUAL 0x00400000u
 #define PAGING_TEST_VALUE 0x4E454255u
 
+static volatile bool task_worker_ran;
+
 static const char *memory_type_name(uint32_t type)
 {
   return type == 1 ? "available" : "reserved";
@@ -98,6 +100,20 @@ static void run_console(void)
     __asm__ volatile("hlt");
   }
 }
+
+static void task_test_worker(void)
+{
+    task_worker_ran = true;
+    log_info("Worker task entered\n");
+
+    task_yield();
+
+    for (;;)
+    {
+      task_yield();
+    }
+}
+
 
 void kernel_main(uint32_t magic, multiboot_info_t *mbi)
 {
@@ -202,7 +218,7 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
          paging_directory_physical());
   ASSERT(boot_task->kernel_stack_top == (uint32_t)stack_top);
 
-  struct task *ready_task = task_create(paging_directory_physical());
+  struct task *ready_task = task_create(paging_directory_physical(), task_test_worker);
 
   ASSERT(ready_task != NULL);
   ASSERT(ready_task->id == 1);
@@ -213,9 +229,20 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   ASSERT(ready_task->kernel_stack_top !=
          boot_task->kernel_stack_top);
   ASSERT((ready_task->kernel_stack_top & 0xFu) == 0u);
-
+  ASSERT(ready_task->entry == task_test_worker);
+  ASSERT(ready_task->stack_pointer != 0u);
+  ASSERT(ready_task->stack_pointer <
+         ready_task->kernel_stack_top);
 
   ASSERT(task_current() == boot_task);
+
+  task_yield();
+
+  ASSERT(task_worker_ran);
+  ASSERT(task_current() == boot_task);
+  ASSERT(boot_task->state == TASK_RUNNING);
+  ASSERT(ready_task->state == TASK_READY);
+  log_info("Cooperative task switch test passed\n");
 
   log_info("Task system test passed\n");
 

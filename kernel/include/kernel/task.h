@@ -14,12 +14,17 @@ enum task_state {
     TASK_TERMINATED,
 };
 
+typedef void (*task_entry_t)(void);
+
 struct task {
     uint32_t id;
     enum task_state state;
 
     uint32_t page_directory_physical;
     uint32_t kernel_stack_top;
+
+    uint32_t stack_pointer;
+    task_entry_t entry;
 };
 
 void task_system_init(
@@ -29,6 +34,11 @@ void task_system_init(
 
 struct task *task_current(void);
 
-struct task *task_create(uint32_t page_directory);
+struct task *task_create(
+    uint32_t page_directory,
+    task_entry_t entry
+);
+
+void task_yield(void);
 
 #endif
