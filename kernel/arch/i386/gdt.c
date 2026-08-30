@@ -65,3 +65,8 @@ bool gdt_is_tss_loaded(void)
 
     return selector == GDT_TSS_SELECTOR;
 }
+
+void gdt_set_kernel_stack(uint32_t stack_top)
+{
+  tss.esp0 = stack_top;
+}

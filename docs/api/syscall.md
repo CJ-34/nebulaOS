@@ -10,8 +10,9 @@ stub. The stub saves the general-purpose registers, passes a pointer to a
 logs the first argument. `SYSCALL_ECHO` is number `2`; it returns that first
 argument unchanged. `SYSCALL_WRITE` is number `3`; it writes a validated
 user-supplied byte buffer to the serial output. `SYSCALL_GET_TICKS` is number
-`4`; it returns the current PIT tick count. Other syscall numbers are logged
-as errors.
+`4`; it returns the current PIT tick count. `SYSCALL_EXIT` is number `5`; it
+terminates the current task and does not return to ring 3. Other syscall
+numbers are logged as errors.
 
 The current register ABI is:
 
@@ -35,4 +36,9 @@ driver uses it.
 tick count and returns it in EAX. As a 32-bit counter it eventually wraps; it
 is a tick count, not a wall-clock time API.
 
-There are not yet conventions for further arguments or process-exit semantics.
+`SYSCALL_EXIT` has no input arguments or return value. It delegates to
+`task_exit()`, which marks the task terminated and cooperatively switches to a
+ready successor. The user program must treat it as non-returning.
+
+There are not yet conventions for further arguments or process-level resource
+cleanup.

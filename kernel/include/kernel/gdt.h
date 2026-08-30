@@ -34,4 +34,6 @@ void tss_load(uint16_t selector);
 
 bool gdt_is_tss_loaded(void);
 
+void gdt_set_kernel_stack(uint32_t stack_top);
+
 #endif

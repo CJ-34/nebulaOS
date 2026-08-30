@@ -9,7 +9,10 @@
 #include <kernel/pit.h>
 
 #include <kernel/panic.h>
+#include <kernel/assert.h>
 #include <kernel/user_mode.h>
+#include <kernel/paging.h>
+#include <kernel/task.h>
 
 #define CONSOLE_LINE_CAPACITY 64
 
@@ -143,8 +146,27 @@ static void console_submit_line(void)
         console_run_heaptest();
     }
     else if (line_equals("usertest")) {
-        terminal_writestring("Entering user mode\n");
-        user_mode_enter(USER_CODE_VIRTUAL, USER_STACK_TOP);
+        struct task *user_task = task_create(
+            paging_directory_physical(),
+            user_mode_task_entry
+        );
+
+        if (user_task == NULL)
+        {
+            terminal_writestring("Could not create user task\n");
+        }
+        else
+        {
+            terminal_writestring("Entering user task\n");
+
+            task_yield();
+
+            ASSERT(user_task->state == TASK_TERMINATED);
+            ASSERT(task_reap(user_task));
+
+            terminal_writestring("User task exited\n");
+        }
+
     }
     else if (line_equals("ticks"))
     {

@@ -3,8 +3,8 @@
 Header: `kernel/include/kernel/task.h`
 
 `struct task` is NebulaOS’s initial model of a schedulable execution context.
-It currently contains metadata only; no runnable queue, scheduler, context
-switch, or per-task address space has been implemented.
+It has a fixed task table and a cooperative context switch. There is still no
+runnable queue or per-task address space.
 
 Each task has:
 
@@ -14,8 +14,8 @@ Each task has:
 - `page_directory_physical`: the page-directory physical address to load into
   CR3 when per-task address spaces and context switching are added. It is
   currently the shared kernel page directory.
-- `kernel_stack_top`: the top of the task's private kernel stack. When a user
-  task enters ring 0, this will eventually supply the TSS `esp0` value.
+- `kernel_stack_top`: the top of the task's private kernel stack. A ring-3
+  task supplies it to the TSS `esp0` field before entering user mode.
 - `stack_pointer`: the saved ESP used by the cooperative context switch.
 - `entry`: the C function entered the first time a newly created task runs.
 
@@ -41,14 +41,19 @@ current task's table slot and wrapping at the end of the table. This is a
 cooperative round-robin policy: it avoids repeatedly preferring low-index
 slots. It marks the current task ready, marks the selected task running, and
 calls the i386 `task_switch` assembly routine.
-The routine saves EBP, EBX, ESI, EDI, and ESP on the old task's stack; it then
-restores those values from the new task's saved stack and uses `ret` to resume
+The routine saves EFLAGS; the data-segment selectors DS, ES, FS, and GS; and
+the callee-saved registers EBP, EBX, ESI, and EDI on the old task's stack. It
+then restores them from the new task's saved stack and uses `ret` to resume
 execution. EIP is therefore represented by the return address on each saved
-stack, not a separate task field.
+stack, not a separate task field. Saving EFLAGS matters because an `int`
+syscall through an interrupt gate clears IF; restoring the console task's
+saved EFLAGS re-enables keyboard and timer interrupts when that task resumes.
 
-A new task starts with a synthetic saved-register frame whose return address
-enters an internal bootstrap function. The bootstrap invokes `task->entry`.
-If the entry function returns, the bootstrap calls `task_exit()`.
+A new task starts with a synthetic frame matching this exact restore order.
+Its initial EFLAGS are copied from the creating task, and its initial segment
+selectors are the kernel data selector. Its return address enters an internal
+bootstrap function. The bootstrap invokes `task->entry`; if the entry returns,
+the bootstrap calls `task_exit()`.
 
 `task_exit()` is non-returning. It marks the current task
 `TASK_TERMINATED`, selects a ready successor, marks that task running, and
@@ -65,8 +70,9 @@ increasing task ID when recreated.
 
 All tasks currently share one page directory. There is no CR3 switch,
 runnable queue, stack deallocation, interrupt-safe scheduling, or PIT-driven
-preemption. `task_yield()`, `task_exit()`, and `task_reap()` are only safe for
-the controlled cooperative test that runs before interrupts are enabled.
+preemption. The PIT does not schedule, so the console may cooperatively yield
+to the controlled user-task test; task operations are not yet safe for a
+preemptive scheduler or arbitrary interrupt-handler use.
 
 The boot path tests this policy with two workers. Worker A yields, Worker B
 runs and terminates, task 0 resumes, then task 0 yields again so Worker A

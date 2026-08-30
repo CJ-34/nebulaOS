@@ -5,6 +5,7 @@
 
 #include <kernel/drivers/serial.h>
 #include <kernel/usercopy.h>
+#include <kernel/task.h>
 
 #define SYSCALL_WRITE_MAX_LENGTH 128u
 
@@ -36,6 +37,9 @@ void syscall_handler(struct syscall_frame *frame)
     case SYSCALL_GET_TICKS:
         frame->eax = pit_ticks();
         break;
+
+    case SYSCALL_EXIT:
+        task_exit();
     default:
         log_error("Unknown syscall number: %x\n", frame->eax);
         break;

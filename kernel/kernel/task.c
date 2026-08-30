@@ -2,11 +2,11 @@
 #include <string.h>
 
 #include <kernel/task.h>
+#include <kernel/gdt.h>
 
 extern void task_switch(
     uint32_t *old_stack_pointer,
-    uint32_t new_stack_pointer
-);
+    uint32_t new_stack_pointer);
 
 static uint8_t task_kernel_stacks[TASK_MAX_COUNT][TASK_KERNEL_STACK_SIZE] __attribute__((aligned(16)));
 static struct task tasks[TASK_MAX_COUNT];
@@ -19,11 +19,20 @@ static __attribute__((noreturn)) void task_bootstrap(void)
     task_exit();
 }
 
-static uint32_t task_prepare_initial_stack(uint32_t stack_top) {
+static uint32_t task_prepare_initial_stack(uint32_t stack_top)
+{
     uint32_t *stack = (uint32_t *)stack_top;
+    uint32_t eflags;
+
+    __asm__ volatile ("pushfl; popl %0" : "=r"(eflags));
 
     *--stack = 0;
     *--stack = (uint32_t)task_bootstrap;
+    *--stack = eflags;
+    *--stack = GDT_KERNEL_DATA_SELECTOR;
+    *--stack = GDT_KERNEL_DATA_SELECTOR;
+    *--stack = GDT_KERNEL_DATA_SELECTOR;
+    *--stack = GDT_KERNEL_DATA_SELECTOR;
     *--stack = 0;
     *--stack = 0;
     *--stack = 0;
@@ -52,7 +61,8 @@ struct task *task_current(void)
 
 struct task *task_create(uint32_t page_directory, task_entry_t entry)
 {
-    if (entry == NULL) {
+    if (entry == NULL)
+    {
         return NULL;
     }
 
@@ -110,54 +120,56 @@ void task_yield(void)
 
     task_switch(
         &previous->stack_pointer,
-        next->stack_pointer
-    );
+        next->stack_pointer);
 }
 
-  void task_exit(void)
-  {
-      struct task *previous = current_task;
-      struct task *next;
+void task_exit(void)
+{
+    struct task *previous = current_task;
+    struct task *next;
 
-      previous->state = TASK_TERMINATED;
+    previous->state = TASK_TERMINATED;
 
-      next = task_find_ready();
+    next = task_find_ready();
 
-      if (next == NULL)
-      {
-          for (;;)
-          {
-              __asm__ volatile("cli; hlt");
-          }
-      }
+    if (next == NULL)
+    {
+        for (;;)
+        {
+            __asm__ volatile("cli; hlt");
+        }
+    }
 
-      next->state = TASK_RUNNING;
-      current_task = next;
+    next->state = TASK_RUNNING;
+    current_task = next;
 
-      task_switch(
-          &previous->stack_pointer,
-          next->stack_pointer);
+    task_switch(
+        &previous->stack_pointer,
+        next->stack_pointer);
 
-      for (;;)
-      {
-          __asm__ volatile("cli; hlt");
-      }
-  }
+    for (;;)
+    {
+        __asm__ volatile("cli; hlt");
+    }
+}
 
-  bool task_reap(struct task *task)
-  {
-    if (task == NULL) {
+bool task_reap(struct task *task)
+{
+    if (task == NULL)
+    {
         return false;
     }
 
-    if (task == task_current()) {
+    if (task == task_current())
+    {
         return false;
     }
 
-    if (task->state != TASK_TERMINATED) {
+    if (task->state != TASK_TERMINATED)
+    {
         return false;
     }
 
     memset(task, 0, sizeof(*task));
     return true;
-  }
+}

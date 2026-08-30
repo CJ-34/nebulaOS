@@ -3,6 +3,9 @@
 #include <kernel/user_mode.h>
 #include <kernel/syscall.h>
 
+#include <kernel/gdt.h>
+#include <kernel/task.h>
+
 #include <string.h>
 
 #define INITIAL_USER_MESSAGE_OFFSET 0x100u
@@ -43,8 +46,13 @@ static const uint8_t initial_user_code[] = {
     0xB8, SYSCALL_TEST, 0x00, 0x00, 0x00,
     0xCD, 0x80,
 
-    /* jmp . */
-    0xEB, 0xFE};
+    /* mov $SYSCALL_EXIT, %eax; int $0x80 */
+    0xB8, SYSCALL_EXIT, 0x00, 0x00, 0x00,
+    0xCD, 0x80,
+
+    /* Reaching this instruction means SYSCALL_EXIT returned incorrectly. */
+    0x0F, 0x0B
+};
 
 bool user_mode_prepare(void)
 {
@@ -97,4 +105,13 @@ bool user_mode_prepare(void)
     }
 
     return true;
+}
+
+void user_mode_task_entry(void)
+{
+    struct task *task = task_current();
+
+    gdt_set_kernel_stack(task->kernel_stack_top);
+
+    user_mode_enter(USER_CODE_VIRTUAL, USER_STACK_TOP);
 }

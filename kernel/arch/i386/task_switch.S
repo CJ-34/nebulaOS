@@ -6,6 +6,12 @@ task_switch:
     movl 4(%esp), %eax
     movl 8(%esp), %edx
 
+    pushfl
+    push %ds
+    push %es
+    push %fs
+    push %gs
+
     pushl %ebp
     pushl %ebx
     pushl %esi
@@ -18,6 +24,12 @@ task_switch:
     popl %esi
     popl %ebx
     popl %ebp
+
+    pop %gs
+    pop %fs
+    pop %es
+    pop %ds
+    popfl
 
     ret
 

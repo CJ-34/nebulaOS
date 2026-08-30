@@ -10,3 +10,8 @@ code/data, and `0x28` for the TSS.
 `tss_load(selector)` executes `ltr`; `gdt_is_tss_loaded()` reads `TR` to
 verify the TSS selector. The TSS supplies the ring-0 stack for privilege
 changes and is not used for hardware task switching.
+
+`gdt_set_kernel_stack(stack_top)` updates the live TSS `esp0` field. Before a
+scheduled user task enters ring 3, NebulaOS calls it with that task's private
+kernel-stack top. On a later CPL3-to-CPL0 interrupt or syscall, the x86 CPU
+loads SS0:ESP0 from this TSS before pushing the privilege-change frame.

@@ -15,4 +15,7 @@ bool user_mode_prepare(void);
 __attribute__((noreturn))
 void user_mode_enter(uint32_t entry, uint32_t stack_top);
 
+__attribute__((noreturn))
+void user_mode_task_entry(void);
+
 #endif
