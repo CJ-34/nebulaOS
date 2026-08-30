@@ -121,6 +121,12 @@ static void task_test_worker_b(void)
   log_info("Worker B entered\n");
 }
 
+static void task_test_worker_c(void)
+{
+  ASSERT(task_test_step == 3);
+  task_test_step = 4;
+  log_info("Worker C entered\n");
+}
 
 void kernel_main(uint32_t magic, multiboot_info_t *mbi)
 {
@@ -271,7 +277,34 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   ASSERT(worker_a->state == TASK_TERMINATED);
   ASSERT(worker_b->state == TASK_TERMINATED);
 
-  log_info("Round-robin task test passed\n");
+  uint32_t worker_a_stack_top = worker_a->kernel_stack_top;
+
+  ASSERT(!task_reap(NULL));
+  ASSERT(!task_reap(boot_task));
+  ASSERT(task_reap(worker_a));
+  ASSERT(task_reap(worker_b));
+
+  ASSERT(worker_a->state == TASK_UNUSED);
+  ASSERT(worker_b->state == TASK_UNUSED);
+
+  struct task *worker_c = task_create(
+      paging_directory_physical(),
+      task_test_worker_c);
+
+  ASSERT(worker_c != NULL);
+  ASSERT(worker_c == worker_a);
+  ASSERT(worker_c->id == 3);
+  ASSERT(worker_c->state == TASK_READY);
+  ASSERT(worker_c->kernel_stack_top == worker_a_stack_top);
+
+  task_yield();
+
+  ASSERT(task_test_step == 4);
+  ASSERT(task_current() == boot_task);
+  ASSERT(boot_task->state == TASK_RUNNING);
+  ASSERT(worker_c->state == TASK_TERMINATED);
+
+  log_info("Task reaping test passed\n");
 
   uint32_t mapping_free_before = pmm_free_frames();
   uint32_t mapped_frame = pmm_allocate_frame();

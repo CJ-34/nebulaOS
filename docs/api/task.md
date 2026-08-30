@@ -54,15 +54,22 @@ If the entry function returns, the bootstrap calls `task_exit()`.
 `TASK_TERMINATED`, selects a ready successor, marks that task running, and
 context-switches away. A terminated task cannot be selected again because the
 scheduler considers only `TASK_READY` tasks. If no ready successor exists,
-the CPU disables interrupts and halts forever. Task slots and their stacks are
-not reclaimed yet; a future reaper or task-destruction path will handle that.
+the CPU disables interrupts and halts forever.
+
+`task_reap(task)` completes the current task lifecycle. It returns `false` for
+`NULL`, the current task, or a task that is not `TASK_TERMINATED`. Otherwise it
+clears the task metadata, changing the slot to `TASK_UNUSED`, and returns
+`true`. The slot's static stack allocation remains reserved but is reused by
+the next task created in that slot. Reaped tasks receive a new monotonically
+increasing task ID when recreated.
 
 All tasks currently share one page directory. There is no CR3 switch,
-runnable queue, stack reclamation, interrupt-safe scheduling, or PIT-driven
-preemption. `task_yield()` and `task_exit()` are only safe for the controlled
-cooperative test that runs before interrupts are enabled.
+runnable queue, stack deallocation, interrupt-safe scheduling, or PIT-driven
+preemption. `task_yield()`, `task_exit()`, and `task_reap()` are only safe for
+the controlled cooperative test that runs before interrupts are enabled.
 
 The boot path tests this policy with two workers. Worker A yields, Worker B
 runs and terminates, task 0 resumes, then task 0 yields again so Worker A
 resumes and terminates. The observed sequence is `boot → A → B → boot → A →
-boot`.
+boot`. It then reaps both workers, creates Worker C in the first reusable slot,
+and confirms that Worker C runs and terminates with a fresh ID.

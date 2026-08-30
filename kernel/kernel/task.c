@@ -143,3 +143,21 @@ void task_yield(void)
           __asm__ volatile("cli; hlt");
       }
   }
+
+  bool task_reap(struct task *task)
+  {
+    if (task == NULL) {
+        return false;
+    }
+
+    if (task == task_current()) {
+        return false;
+    }
+
+    if (task->state != TASK_TERMINATED) {
+        return false;
+    }
+
+    memset(task, 0, sizeof(*task));
+    return true;
+  }

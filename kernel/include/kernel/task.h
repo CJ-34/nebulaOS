@@ -2,6 +2,7 @@
 #define _KERNEL_TASK_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define TASK_MAX_COUNT 16u
 #define TASK_KERNEL_STACK_SIZE 16384u
@@ -43,5 +44,7 @@ void task_yield(void);
 
 __attribute__((noreturn))
 void task_exit(void);
+
+bool task_reap(struct task *task);
 
 #endif
