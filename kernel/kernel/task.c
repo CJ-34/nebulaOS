@@ -78,11 +78,16 @@ struct task *task_create(uint32_t page_directory, task_entry_t entry)
 
 static struct task *task_find_ready(void)
 {
-    for (uint32_t i = 0; i < TASK_MAX_COUNT; i++)
+    uint32_t current_index =
+        (uint32_t)(current_task - tasks);
+
+    for (uint32_t offset = 1; offset < TASK_MAX_COUNT; offset++)
     {
-        if (tasks[i].state == TASK_READY)
+        uint32_t index = (current_index + offset) % TASK_MAX_COUNT;
+
+        if (tasks[index].state == TASK_READY)
         {
-            return &tasks[i];
+            return &tasks[index];
         }
     }
 

@@ -29,7 +29,7 @@ extern char stack_top[];
 #define PAGING_TEST_VIRTUAL 0x00400000u
 #define PAGING_TEST_VALUE 0x4E454255u
 
-static volatile bool task_worker_ran;
+static volatile uint32_t task_test_step;
 
 static const char *memory_type_name(uint32_t type)
 {
@@ -101,10 +101,24 @@ static void run_console(void)
   }
 }
 
-static void task_test_worker(void)
+static void task_test_worker_a(void)
 {
-    task_worker_ran = true;
-    log_info("Worker task entered\n");
+  ASSERT(task_test_step == 0);
+  task_test_step = 1;
+  log_info("Worker A entered\n");
+
+  task_yield();
+
+  ASSERT(task_test_step == 2);
+  task_test_step = 3;
+  log_info("Worker A resumed\n");
+}
+
+static void task_test_worker_b(void)
+{
+  ASSERT(task_test_step == 1);
+  task_test_step = 2;
+  log_info("Worker B entered\n");
 }
 
 
@@ -211,34 +225,53 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
          paging_directory_physical());
   ASSERT(boot_task->kernel_stack_top == (uint32_t)stack_top);
 
-  struct task *ready_task = task_create(paging_directory_physical(), task_test_worker);
+  struct task *worker_a = task_create(paging_directory_physical(), task_test_worker_a);
 
-  ASSERT(ready_task != NULL);
-  ASSERT(ready_task->id == 1);
-  ASSERT(ready_task->state == TASK_READY);
-  ASSERT(ready_task->page_directory_physical ==
+  struct task *worker_b = task_create(paging_directory_physical(), task_test_worker_b);
+
+  ASSERT(worker_a != NULL);
+  ASSERT(worker_b != NULL);
+
+  ASSERT(worker_a->id == 1);
+  ASSERT(worker_b->id == 2);
+  ASSERT(worker_a->state == TASK_READY);
+  ASSERT(worker_b->state == TASK_READY);
+
+  ASSERT(worker_a != NULL);
+  ASSERT(worker_a->id == 1);
+  ASSERT(worker_a->state == TASK_READY);
+  ASSERT(worker_a->page_directory_physical ==
          paging_directory_physical());
-  ASSERT(ready_task->kernel_stack_top != 0u);
-  ASSERT(ready_task->kernel_stack_top !=
+  ASSERT(worker_a->kernel_stack_top != 0u);
+  ASSERT(worker_a->kernel_stack_top !=
          boot_task->kernel_stack_top);
-  ASSERT((ready_task->kernel_stack_top & 0xFu) == 0u);
-  ASSERT(ready_task->entry == task_test_worker);
-  ASSERT(ready_task->stack_pointer != 0u);
-  ASSERT(ready_task->stack_pointer <
-         ready_task->kernel_stack_top);
+  ASSERT((worker_a->kernel_stack_top & 0xFu) == 0u);
+  ASSERT(worker_a->entry == task_test_worker_a);
+  ASSERT(worker_a->stack_pointer != 0u);
+  ASSERT(worker_a->stack_pointer <
+         worker_a->kernel_stack_top);
 
   ASSERT(task_current() == boot_task);
+
+  ASSERT(worker_b->kernel_stack_top != worker_a->kernel_stack_top);
 
   task_yield();
 
-  ASSERT(task_worker_ran);
-  ASSERT(ready_task->state == TASK_TERMINATED);
+  ASSERT(task_test_step == 2);
   ASSERT(task_current() == boot_task);
   ASSERT(boot_task->state == TASK_RUNNING);
+  ASSERT(worker_a->state == TASK_READY);
+  ASSERT(worker_b->state == TASK_TERMINATED);
 
-  log_info("Cooperative task switch test passed\n");
+  task_yield();
 
-  log_info("Task system test passed\n");
+  ASSERT(task_test_step == 3);
+  ASSERT(task_current() == boot_task);
+  ASSERT(boot_task->state == TASK_RUNNING);
+  ASSERT(worker_a->state == TASK_TERMINATED);
+  ASSERT(worker_b->state == TASK_TERMINATED);
+
+  log_info("Round-robin task test passed\n");
 
   uint32_t mapping_free_before = pmm_free_frames();
   uint32_t mapped_frame = pmm_allocate_frame();
