@@ -218,9 +218,8 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   log_info("Paging enabled with first 4 MiB identity-mapped\n");
 
   task_system_init(
-    paging_directory_physical(),
-    (uint32_t) stack_top
-  );
+      paging_directory_physical(),
+      (uint32_t)stack_top);
 
   struct task *boot_task = task_current();
 
@@ -446,6 +445,26 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
   ASSERT(merged[255] == 0x55);
 
   log_info("Heap block-coalescing test passed\n");
+
+  uint32_t free_frames_before = pmm_free_frames();
+
+  uint32_t test_address_space = paging_create_address_space();
+
+  ASSERT(test_address_space != PMM_INVALID_FRAME);
+  ASSERT(test_address_space != paging_directory_physical());
+
+  ASSERT(paging_activate_address_space(test_address_space));
+  ASSERT(paging_active_directory_physical() == test_address_space);
+
+  ASSERT(paging_activate_address_space(paging_directory_physical()));
+  ASSERT(paging_active_directory_physical() ==
+         paging_directory_physical());
+
+  pmm_free_frame(test_address_space);
+
+  ASSERT(pmm_free_frames() == free_frames_before);
+
+  log_info("Address-space switch test passed\n");
 
   if (!user_mode_prepare())
   {

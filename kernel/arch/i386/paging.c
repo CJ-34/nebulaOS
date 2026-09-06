@@ -11,11 +11,10 @@
 
 #define PAGE_FRAME_MASK 0xFFFFF000u
 
+#define KERNEL_DIRECTORY_ENTRY_COUNT 2u
+
 static uint32_t page_directory_physical;
 static uint32_t first_page_table_physical;
-
-
-
 
 bool paging_prepare_identity_map(void)
 {
@@ -66,6 +65,47 @@ uint32_t paging_directory_physical(void)
 uint32_t paging_first_table_physical(void)
 {
     return first_page_table_physical;
+}
+
+uint32_t paging_create_address_space(void)
+{
+    uint32_t directory_physical;
+    uint32_t *kernel_directory;
+    uint32_t *new_directory;
+
+    if (page_directory_physical == PMM_INVALID_FRAME)
+    {
+        return PMM_INVALID_FRAME;
+    }
+
+    directory_physical = pmm_allocate_frame();
+
+    if (directory_physical == PMM_INVALID_FRAME)
+    {
+        return PMM_INVALID_FRAME;
+    }
+
+    kernel_directory = (uint32_t *)page_directory_physical;
+    new_directory = (uint32_t *)directory_physical;
+
+    memset(new_directory, 0, PMM_PAGE_SIZE);
+
+    for (uint32_t i = 0; i < KERNEL_DIRECTORY_ENTRY_COUNT; i++)
+    {
+        new_directory[i] = kernel_directory[i];
+    }
+
+    return directory_physical;
+}
+
+uint32_t paging_active_directory_physical(void)
+{
+    uint32_t directory_physical;
+    __asm__ volatile(
+        "movl %%cr3, %0"
+        : "=r"(directory_physical)
+    );
+    return directory_physical & PAGE_FRAME_MASK;
 }
 
 bool paging_enable(void)
@@ -193,6 +233,23 @@ bool paging_is_user_range_accessible(
 
         current_page += PMM_PAGE_SIZE;
     }
+
+    return true;
+}
+
+bool paging_activate_address_space(uint32_t directory_physical)
+{
+    if (directory_physical == PMM_INVALID_FRAME || (directory_physical & (PMM_PAGE_SIZE - 1u)) != 0)
+    {
+        return false;
+    }
+
+    __asm__ volatile(
+        "movl %0, %%cr3"
+        :
+        : "r"(directory_physical)
+        : "memory"
+    );
 
     return true;
 }

@@ -19,10 +19,14 @@ bool paging_prepare_identity_map(void);
 
 uint32_t paging_directory_physical(void);
 uint32_t paging_first_table_physical(void);
+uint32_t paging_create_address_space(void);
+uint32_t paging_active_directory_physical(void);
 
 bool paging_enable(void);
 bool paging_is_enabled(void);
 bool paging_is_user_accessible(uint32_t virtual_address, bool require_writable);
 bool paging_is_user_range_accessible(uint32_t virtual_address, uint32_t length, bool require_writable);
+bool paging_activate_address_space(uint32_t directory_physical);
+
 
 #endif
