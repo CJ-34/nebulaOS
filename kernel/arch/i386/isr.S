@@ -1,3 +1,5 @@
+.set KERNEL_DATA_SELECTOR, 0x10
+
 .section .text
 
   .global isr_exception_0
@@ -54,13 +56,30 @@
     .global syscall_entry
     .type syscall_entry, @function
     syscall_entry:
+        push %ds
+        push %es
+        push %fs
+        push %gs
+
         pusha
         cld
+
+        movw $KERNEL_DATA_SELECTOR, %ax
+        movw %ax, %ds
+        movw %ax, %es
+        movw %ax, %fs
+        movw %ax, %gs
 
         pushl %esp
         call syscall_handler
         addl $4, %esp
+
         popa
+
+        pop %gs
+        pop %fs
+        pop %es
+        pop %ds
         iret
     .size syscall_entry, . - syscall_entry
 

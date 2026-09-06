@@ -3,9 +3,6 @@
 #include <kernel/user_mode.h>
 #include <kernel/syscall.h>
 
-#include <kernel/gdt.h>
-#include <kernel/task.h>
-
 #include <string.h>
 
 #define INITIAL_USER_MESSAGE_OFFSET 0x100u
@@ -109,9 +106,5 @@ bool user_mode_prepare(void)
 
 void user_mode_task_entry(void)
 {
-    struct task *task = task_current();
-
-    gdt_set_kernel_stack(task->kernel_stack_top);
-
     user_mode_enter(USER_CODE_VIRTUAL, USER_STACK_TOP);
 }

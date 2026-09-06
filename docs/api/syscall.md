@@ -3,8 +3,11 @@
 Header: `kernel/include/kernel/syscall.h`
 
 `syscall_handler()` is the current C target of the ring-3 `int $0x80` entry
-stub. The stub saves the general-purpose registers, passes a pointer to a
-`struct syscall_frame` to the handler, and returns through `iret`.
+stub. The stub saves the user data-segment selectors, then saves the
+general-purpose registers and passes a pointer to a `struct syscall_frame` to
+the handler. Before entering C, it loads the kernel data selector into DS, ES,
+FS, and GS. After the handler it restores the registers and original user
+selectors, then returns through `iret`.
 
 `frame->eax` contains the syscall number. `SYSCALL_TEST` is number `1`; it
 logs the first argument. `SYSCALL_ECHO` is number `2`; it returns that first
@@ -20,9 +23,10 @@ The current register ABI is:
 - `EBX`: first argument.
 - `ECX`: second argument.
 
-The assembly entry stub saves registers before calling C. Changing
-`frame->eax` changes the EAX register restored by `popa`, so it becomes the
-value received by ring 3 after `iret`.
+The selector saves occur before `pusha`, so ESP still points at
+`struct syscall_frame` when that pointer is passed to C. Changing `frame->eax`
+changes the EAX register restored by `popa`, so it becomes the value received
+by ring 3 after `iret`.
 
 For `SYSCALL_WRITE`, `EBX` is the user virtual address and `ECX` is the byte
 count. The count is limited to 128 bytes. Before reading the buffer, the

@@ -51,6 +51,7 @@ void task_system_init(uint32_t boot_page_directory, uint32_t boot_kernel_stack_t
     tasks[0].kernel_stack_top = boot_kernel_stack_top;
 
     current_task = &tasks[0];
+    gdt_set_kernel_stack(current_task->kernel_stack_top);
     next_task_id = 1;
 }
 
@@ -118,6 +119,8 @@ void task_yield(void)
     next->state = TASK_RUNNING;
     current_task = next;
 
+    gdt_set_kernel_stack(next->kernel_stack_top);
+
     task_switch(
         &previous->stack_pointer,
         next->stack_pointer);
@@ -142,6 +145,8 @@ void task_exit(void)
 
     next->state = TASK_RUNNING;
     current_task = next;
+
+    gdt_set_kernel_stack(next->kernel_stack_top);
 
     task_switch(
         &previous->stack_pointer,

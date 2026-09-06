@@ -19,10 +19,10 @@ calls `SYSCALL_EXIT`. The same program can be pointed at the guard page to
 demonstrate the invalid-buffer error path.
 
 `user_mode_task_entry()` is the task entry used by the console's `usertest`
-command. It obtains the current task, sets the TSS `esp0` to that task's
-private kernel-stack top, and calls `user_mode_enter()`. On a later syscall,
-the CPU therefore switches from the user stack to the correct kernel stack.
-`SYSCALL_EXIT` terminates the task; the cooperative scheduler resumes the
-console task, which reaps the terminated task and restores the prompt. This is
-one controlled lifecycle using a shared address space, not a general process
-model.
+command. It only calls `user_mode_enter()`. Before dispatching a task, the
+scheduler updates the TSS `esp0` to the incoming task's private kernel-stack
+top; on a later syscall, the CPU therefore switches from the user stack to the
+correct kernel stack. `SYSCALL_EXIT` terminates the task; the cooperative
+scheduler resumes the console task, which reaps the terminated task and
+restores the prompt. This is one controlled lifecycle using a shared address
+space, not a general process model.

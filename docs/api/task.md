@@ -14,8 +14,9 @@ Each task has:
 - `page_directory_physical`: the page-directory physical address to load into
   CR3 when per-task address spaces and context switching are added. It is
   currently the shared kernel page directory.
-- `kernel_stack_top`: the top of the task's private kernel stack. A ring-3
-  task supplies it to the TSS `esp0` field before entering user mode.
+- `kernel_stack_top`: the top of the task's private kernel stack. The
+  scheduler copies the incoming task's value to the TSS `esp0` field before
+  that task runs.
 - `stack_pointer`: the saved ESP used by the cooperative context switch.
 - `entry`: the C function entered the first time a newly created task runs.
 
@@ -39,8 +40,9 @@ preemptive and user-mode tasks.
 `task_yield()` selects the next `TASK_READY` task by scanning forward from the
 current task's table slot and wrapping at the end of the table. This is a
 cooperative round-robin policy: it avoids repeatedly preferring low-index
-slots. It marks the current task ready, marks the selected task running, and
-calls the i386 `task_switch` assembly routine.
+slots. It marks the current task ready, marks the selected task running,
+updates TSS `esp0` for the selected task, and calls the i386 `task_switch`
+assembly routine.
 The routine saves EFLAGS; the data-segment selectors DS, ES, FS, and GS; and
 the callee-saved registers EBP, EBX, ESI, and EDI on the old task's stack. It
 then restores them from the new task's saved stack and uses `ret` to resume
