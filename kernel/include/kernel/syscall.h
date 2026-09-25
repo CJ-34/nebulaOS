@@ -2,6 +2,7 @@
 #define _KERNEL_SYSCALL_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define SYSCALL_TEST 1u
 #define SYSCALL_ECHO 2u
@@ -20,12 +21,18 @@ struct syscall_frame {
     uint32_t edx;
     uint32_t ecx;
     uint32_t eax;
+    uint32_t gs;
+    uint32_t fs;
+    uint32_t es;
+    uint32_t ds;
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;
     uint32_t user_esp;
     uint32_t user_ss;
 } __attribute__((packed));
+
+_Static_assert(offsetof(struct syscall_frame, eip) == 48, "syscall_frame must match push order in syscall_entry");
 
 void syscall_handler(struct syscall_frame *frame);
 

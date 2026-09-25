@@ -16,6 +16,7 @@ void syscall_handler(struct syscall_frame *frame)
     case SYSCALL_TEST:
         log_info("Test syscall entered from user mode\n");
         log_info("Test syscall: argument=%x\n", frame->ebx);
+        log_info("frame: eip=%x cs=%x eflags=%x user_esp=%x\n", frame->eip, frame->cs, frame->eflags, frame->user_esp);
         break;
 
     case SYSCALL_ECHO:

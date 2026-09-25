@@ -28,6 +28,29 @@ The selector saves occur before `pusha`, so ESP still points at
 changes the EAX register restored by `popa`, so it becomes the value received
 by ring 3 after `iret`.
 
+## Frame layout
+
+`struct syscall_frame` must mirror the stack exactly as `syscall_entry` leaves
+it. The last value pushed sits at the lowest address, so the fields appear in
+reverse push order:
+
+| Offset | Field | Pushed by |
+| --- | --- | --- |
+| 0--28 | `edi`, `esi`, `ebp`, `esp_before_pusha`, `ebx`, `edx`, `ecx`, `eax` | `pusha` |
+| 32--44 | `gs`, `fs`, `es`, `ds` | entry stub, before `pusha` |
+| 48--64 | `eip`, `cs`, `eflags`, `user_esp`, `user_ss` | CPU on the ring-3 to ring-0 interrupt |
+
+Any change to the push order in `isr.S` must be matched in the struct;
+otherwise every field after the change reads the wrong stack slot.
+
+In 32-bit mode a segment-register push occupies 4 bytes, but some processors
+write only the low 16 bits. Mask the segment fields with `0xFFFF` before
+treating them as selectors.
+
+`user_esp` and `user_ss` exist only because the interrupt arrived from ring 3.
+An `int $0x80` issued from ring 0 involves no privilege change, so the CPU
+does not push them. `(frame->cs & 3) == 3` identifies a ring-3 caller.
+
 For `SYSCALL_WRITE`, `EBX` is the user virtual address and `ECX` is the byte
 count. The count is limited to 128 bytes. Before reading the buffer, the
 kernel verifies that the entire range is user-accessible; an invalid range or
